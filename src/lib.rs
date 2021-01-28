@@ -2,9 +2,13 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
+mod codec;
+
 use ligature::{
     BlankNode, Dataset, Ligature, LigatureError, QueryResult, QueryTx, Statement, WriteTx,
 };
+
+use codec::decode_dataset;
 
 pub struct LigatureSled {
     store: sled::Db,
@@ -36,41 +40,62 @@ impl LigatureSled {
 }
 
 impl Ligature for LigatureSled {
-    fn all_datasets(&self) -> Box<dyn Iterator<Item = Dataset>> {
+    fn all_datasets(&self) -> Box<dyn Iterator<Item = Result<Dataset, LigatureError>>> {
+        let iter = self.store.iter();
+        Box::new(iter.map(|ds| {
+            match ds {
+                Ok(dataset) => {
+                    match decode_dataset(dataset.0.to_vec()) {
+                        Ok(d) => Ok(d),
+                        Err(err) => Err(LigatureError("Error decoding dataset.".to_string())),
+                    }
+                },
+                Err(_) => Err(LigatureError("Error iterating Datasets.".to_string())),
+            }
+        }))
+    }
+
+    fn match_datasets(&self, prefix: &str) -> Box<dyn Iterator<Item = Result<Dataset, LigatureError>>> {
         todo!()
     }
 
-    fn match_datasets(&self, prefix: &str) -> Box<dyn Iterator<Item = Dataset>> {
-        todo!()
-    }
-
-    fn match_datasets_range(&self, from: &str, to: &str) -> Box<dyn Iterator<Item = Dataset>> {
+    fn match_datasets_range(&self, from: &str, to: &str) -> Box<dyn Iterator<Item = Result<Dataset, LigatureError>>> {
         todo!()
     }
 
     fn create_dataset(&self, dataset: Dataset) -> Result<(), LigatureError> {
+        //check if dataset exists
+        //add dataset to default tree
+        //create new tree
         todo!()
     }
 
     fn delete_dataset(&self, dataset: Dataset) -> Result<(), LigatureError> {
+        //check if dataset exists
+        //remove dataset from default tree
+        //drop dataset's tree
         todo!()
     }
 
     fn query(&self, dataset: Dataset) -> Result<Box<dyn QueryTx>, LigatureError> {
-        todo!()
+        Ok(Box::new(LigatureSledQueryTx {
+            store: self.store.clone()
+        }))
     }
 
     fn write(&self, dataset: Dataset) -> Result<Box<dyn WriteTx>, LigatureError> {
-        todo!()
+        Ok(Box::new(LigatureSledWriteTx {
+            store: self.store.clone()
+        }))
     }
 }
 
 struct LigatureSledQueryTx {
-    //TODO
+    store: sled::Db,
 }
 
 impl QueryTx for LigatureSledQueryTx {
-    fn all_statements(&self) -> Box<dyn Iterator<Item = Statement>> {
+    fn all_statements(&self) -> Box<dyn Iterator<Item = Result<Statement, LigatureError>>> {
         todo!()
     }
 
@@ -84,7 +109,7 @@ impl QueryTx for LigatureSledQueryTx {
 }
 
 struct LigatureSledWriteTx {
-    //TODO
+    store: sled::Db,
 }
 
 impl WriteTx for LigatureSledWriteTx {
