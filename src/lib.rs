@@ -5,10 +5,10 @@
 mod codec;
 
 use ligature::{
-    BlankNode, Dataset, Ligature, LigatureError, QueryResult, QueryTx, Statement, WriteTx,
+    Dataset, Ligature, LigatureError, Vertex, Node, Range, Arrow, QueryResult, QueryTx, WriteTx, Link, PersistedLink,
 };
 
-use codec::decode_dataset;
+use codec::{encode_dataset, decode_dataset};
 
 pub struct LigatureSled {
     store: sled::Db,
@@ -45,7 +45,7 @@ impl Ligature for LigatureSled {
         Box::new(iter.map(|ds| {
             match ds {
                 Ok(dataset) => {
-                    match decode_dataset(dataset.0.to_vec()) {
+                    match decode_dataset(dataset.0.to_vec()) { //TODO use map_err here
                         Ok(d) => Ok(d),
                         Err(err) => Err(LigatureError("Error decoding dataset.".to_string())),
                     }
@@ -64,10 +64,13 @@ impl Ligature for LigatureSled {
     }
 
     fn create_dataset(&self, dataset: Dataset) -> Result<(), LigatureError> {
-        //check if dataset exists
-        //add dataset to default tree
-        //create new tree
-        todo!()
+        let encoded_dataset = encode_dataset(&dataset).map_err(|_| LigatureError("Error checking for Dataset".to_string()))?;
+        let exists = self.store.contains_key(&encoded_dataset).map_err(|_| LigatureError("Error checking for Dataset".to_string()))?;
+        if !exists {
+            self.store.insert(encoded_dataset, vec![]); //TODO error check here -- probably just map_err and ?
+            self.store.open_tree(dataset.name());
+        }
+        Ok(())
     }
 
     fn delete_dataset(&self, dataset: Dataset) -> Result<(), LigatureError> {
@@ -78,6 +81,9 @@ impl Ligature for LigatureSled {
     }
 
     fn query(&self, dataset: Dataset) -> Result<Box<dyn QueryTx>, LigatureError> {
+        //TODO this method should start a readtx in sled
+        //TODO this should check the subtree exists
+        //TODO pass only the subtree to LigatureSledQueryTx
         Ok(Box::new(LigatureSledQueryTx {
             store: self.store.clone()
         }))
@@ -95,11 +101,36 @@ struct LigatureSledQueryTx {
 }
 
 impl QueryTx for LigatureSledQueryTx {
-    fn all_statements(&self) -> Box<dyn Iterator<Item = Result<Statement, LigatureError>>> {
+    fn all_links(&self) -> Box<dyn Iterator<Item = Result<PersistedLink, LigatureError>>> {
+        //check dataset exists
+        //
         todo!()
     }
 
-    fn sparql_query(&self, query: String) -> Result<QueryResult, LigatureError> {
+    /// Returns all PersistedLinks that match the given criteria.
+    /// If a parameter is None then it matches all, so passing all Nones is the same as calling all_statements.
+    fn match_links(
+        &self,
+        source: Option<Vertex>,
+        arrow: Option<Arrow>,
+        target: Option<Vertex>,
+    ) -> Box<dyn Iterator<Item = Result<PersistedLink, LigatureError>>> {
+        todo!()
+    }
+
+    /// Retuns all PersistedLinks that match the given criteria.
+    /// If a parameter is None then it matches all.
+    fn match_links_range(
+        &self,
+        source: Option<Vertex>,
+        arrow: Option<Arrow>,
+        target: Range,
+    ) -> Box<dyn Iterator<Item = Result<PersistedLink, LigatureError>>> {
+        todo!()
+    }
+
+    /// Returns the PersistedLink for the given context.
+    fn link_for_context(&self, context: Node) -> Result<PersistedLink, LigatureError> {
         todo!()
     }
 
@@ -113,15 +144,15 @@ struct LigatureSledWriteTx {
 }
 
 impl WriteTx for LigatureSledWriteTx {
-    fn new_blank_node(&self) -> Result<BlankNode, LigatureError> {
+    fn new_node(&self) -> Result<Node, LigatureError> {
         todo!()
     }
 
-    fn add_statement(&self, statement: Statement) -> Result<Statement, LigatureError> {
+    fn add_link(&self, link: Link) -> Result<PersistedLink, LigatureError> {
         todo!()
     }
 
-    fn remove_statement(&self, statement: Statement) -> Result<Statement, LigatureError> {
+    fn remove_link(&self, persisted_link: PersistedLink) -> Result<(), LigatureError> {
         todo!()
     }
 

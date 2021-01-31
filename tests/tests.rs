@@ -4,7 +4,7 @@
 
 #[cfg(test)]
 mod tests {
-    use ligature::{Dataset, Ligature, Statement};
+    use ligature::{Dataset, Ligature, Statement, LigatureError};
     use ligature_sled::LigatureSled;
 
     fn dataset(name: &str) -> Dataset {
@@ -18,7 +18,7 @@ mod tests {
     #[test]
     fn create_and_close_store() {
         let instance = instance();
-        let res: Vec<Dataset> = instance.all_datasets().collect();
+        let res: Vec<Result<Dataset, LigatureError>> = instance.all_datasets().collect();
         assert!(res.is_empty());
     }
 
@@ -26,8 +26,9 @@ mod tests {
     fn creating_a_new_dataset() {
         let mut instance = instance();
         instance.create_dataset(dataset("test/test"));
-        let res: Vec<Dataset> = instance.all_datasets().collect();
-        assert_eq!(res, vec![dataset("test/test")]);
+        let res: Vec<Result<Dataset, LigatureError>> = instance.all_datasets().collect();
+        let expected: Vec<Result<Dataset, LigatureError>> = vec![Ok(dataset("test/test"))];
+        assert_eq!(res, expected);
     }
 
     #[test]
@@ -36,7 +37,7 @@ mod tests {
         instance.create_dataset(dataset("test/test"));
         instance.delete_dataset(dataset("test/test"));
         instance.delete_dataset(dataset("test/test2"));
-        let res: Vec<Dataset> = instance.all_datasets().collect();
+        let res: Vec<Result<Dataset, LigatureError>> = instance.all_datasets().collect();
         assert!(res.is_empty());
     }
 
@@ -45,7 +46,7 @@ mod tests {
         let instance = instance();
         instance.create_dataset(dataset("test/test"));
         let read_tx = instance.query(dataset("test/test")).unwrap();
-        let res: Vec<Statement> = read_tx.all_statements().collect();
+        let res: Vec<Result<Statement, LigatureError>> = read_tx.all_statements().collect();
         assert!(res.is_empty());
     }
 

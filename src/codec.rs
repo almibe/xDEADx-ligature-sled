@@ -3,7 +3,7 @@
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
 use ligature::{
-    BlankNode, Dataset, Ligature, LigatureError, QueryResult, QueryTx, Statement, WriteTx, Graph, Object, Predicate, Subject,
+    Dataset, Ligature, LigatureError, Link, PersistedLink, Node, Arrow, Vertex, QueryResult, QueryTx, WriteTx,
 };
 
 use bincode::Error;
@@ -21,43 +21,42 @@ pub fn decode_dataset(dataset: Vec<u8>) -> Result<Dataset, Error> {
     bincode::deserialize(&dataset)
 }
 
-pub fn encode_statement(statement: &Statement) -> Vec<u8> {
+pub fn encode_link(link: &Link) -> Vec<u8> {
     todo!()
 }
 
-pub fn decode_statement(statement: Vec<u8>) -> Statement {
+pub fn decode_link(link: Vec<u8>) -> Link {
     todo!()
 }
 
-pub fn encode_subject(subject: &Subject) -> Vec<u8> {
+pub fn encode_persisted_link(persisted_link: &PersistedLink) -> Vec<u8> {
     todo!()
 }
 
-pub fn decode_subject(subject: Vec<u8>) -> Subject {
+pub fn decode_persisted_link(persisted_link: Vec<u8>) -> PersistedLink {
     todo!()
 }
 
-pub fn encode_predicate(predicate: &Predicate) -> Vec<u8> {
+pub fn encode_vertex(vertex: &Vertex) -> Vec<u8> {
     todo!()
 }
 
-pub fn decode_predicate(predicate: Vec<u8>) -> Predicate {
+pub fn decode_vertex(vertex: Vec<u8>) -> Vertex {
     todo!()
 }
 
-pub fn encode_object(object: &Object) -> Vec<u8> {
+pub fn encode_arrow(arrow: &Arrow) -> Vec<u8> {
     todo!()
 }
 
-pub fn decode_object(object: Vec<u8>) -> Object {
+pub fn decode_arrow(arrow: Vec<u8>) -> Arrow {
     todo!()
 }
 
-pub fn encode_graph(graph: &Graph) -> Vec<u8> {
+pub fn encode_node(node: &Node) -> Vec<u8> {
     todo!()
 }
 
-pub fn decode_graph(graph: Vec<u8>) -> Graph {
+pub fn decode_node(node: Vec<u8>) -> Node {
     todo!()
 }
-
