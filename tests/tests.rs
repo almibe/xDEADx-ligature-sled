@@ -4,7 +4,7 @@
 
 #[cfg(test)]
 mod tests {
-    use ligature::{Dataset, Ligature, Link, PersistedLink, LigatureError};
+    use ligature::{Dataset, Ligature, LigatureError, Link, PersistedLink};
     use ligature_sled::LigatureSled;
 
     fn dataset(name: &str) -> Dataset {
@@ -41,7 +41,7 @@ mod tests {
         assert!(res.is_empty());
     }
 
-//    #[test]
+    #[test]
     fn new_datasets_should_be_empty() {
         let instance = instance();
         instance.create_dataset(dataset("test/test"));

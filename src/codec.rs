@@ -3,7 +3,8 @@
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
 use ligature::{
-    Dataset, Ligature, LigatureError, Link, PersistedLink, Node, Arrow, Vertex, QueryResult, QueryTx, WriteTx,
+    Arrow, Dataset, Ligature, LigatureError, Link, Node, PersistedLink, QueryResult, QueryTx,
+    Vertex, WriteTx,
 };
 
 use bincode::Error;
@@ -12,7 +13,7 @@ const DATASET_PREFIX: u8 = 0;
 
 pub fn encode_dataset(dataset: &Dataset) -> Result<Vec<u8>, Error> {
     let encoded_dataset = bincode::serialize(dataset.name())?;
-    let mut res = vec!(DATASET_PREFIX);
+    let mut res = vec![DATASET_PREFIX];
     res.extend(&encoded_dataset);
     Ok(res)
 }

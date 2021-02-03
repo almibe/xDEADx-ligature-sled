@@ -5,10 +5,11 @@
 mod codec;
 
 use ligature::{
-    Dataset, Ligature, LigatureError, Vertex, Node, Range, Arrow, QueryResult, QueryTx, WriteTx, Link, PersistedLink,
+    Arrow, Dataset, Ligature, LigatureError, Link, Node, PersistedLink, QueryResult, QueryTx,
+    Range, Vertex, WriteTx,
 };
 
-use codec::{encode_dataset, decode_dataset};
+use codec::{decode_dataset, encode_dataset};
 
 pub struct LigatureSled {
     store: sled::Db,
@@ -45,27 +46,39 @@ impl Ligature for LigatureSled {
         Box::new(iter.map(|ds| {
             match ds {
                 Ok(dataset) => {
-                    match decode_dataset(dataset.0.to_vec()) { //TODO use map_err here
+                    match decode_dataset(dataset.0.to_vec()) {
+                        //TODO use map_err here
                         Ok(d) => Ok(d),
                         Err(err) => Err(LigatureError("Error decoding dataset.".to_string())),
                     }
-                },
+                }
                 Err(_) => Err(LigatureError("Error iterating Datasets.".to_string())),
             }
         }))
     }
 
-    fn match_datasets(&self, prefix: &str) -> Box<dyn Iterator<Item = Result<Dataset, LigatureError>>> {
+    fn match_datasets(
+        &self,
+        prefix: &str,
+    ) -> Box<dyn Iterator<Item = Result<Dataset, LigatureError>>> {
         todo!()
     }
 
-    fn match_datasets_range(&self, from: &str, to: &str) -> Box<dyn Iterator<Item = Result<Dataset, LigatureError>>> {
+    fn match_datasets_range(
+        &self,
+        from: &str,
+        to: &str,
+    ) -> Box<dyn Iterator<Item = Result<Dataset, LigatureError>>> {
         todo!()
     }
 
     fn create_dataset(&self, dataset: Dataset) -> Result<(), LigatureError> {
-        let encoded_dataset = encode_dataset(&dataset).map_err(|_| LigatureError("Error checking for Dataset".to_string()))?;
-        let exists = self.store.contains_key(&encoded_dataset).map_err(|_| LigatureError("Error checking for Dataset".to_string()))?;
+        let encoded_dataset = encode_dataset(&dataset)
+            .map_err(|_| LigatureError("Error checking for Dataset".to_string()))?;
+        let exists = self
+            .store
+            .contains_key(&encoded_dataset)
+            .map_err(|_| LigatureError("Error checking for Dataset".to_string()))?;
         if !exists {
             self.store.insert(encoded_dataset, vec![]); //TODO error check here -- probably just map_err and ?
             self.store.open_tree(dataset.name());
@@ -74,8 +87,12 @@ impl Ligature for LigatureSled {
     }
 
     fn delete_dataset(&self, dataset: Dataset) -> Result<(), LigatureError> {
-        let encoded_dataset = encode_dataset(&dataset).map_err(|_| LigatureError("Error checking for Dataset".to_string()))?;
-        let exists = self.store.contains_key(&encoded_dataset).map_err(|_| LigatureError("Error checking for Dataset".to_string()))?;
+        let encoded_dataset = encode_dataset(&dataset)
+            .map_err(|_| LigatureError("Error checking for Dataset".to_string()))?;
+        let exists = self
+            .store
+            .contains_key(&encoded_dataset)
+            .map_err(|_| LigatureError("Error checking for Dataset".to_string()))?;
         if exists {
             self.store.remove(&encoded_dataset);
             self.store.drop_tree(dataset.name());
@@ -86,15 +103,16 @@ impl Ligature for LigatureSled {
     fn query(&self, dataset: Dataset) -> Result<Box<dyn QueryTx>, LigatureError> {
         //TODO this method should start a readtx in sled
         //TODO this should check the subtree exists
+        //TODO return error if dataset doesn't exist
         //TODO pass only the subtree to LigatureSledQueryTx
         Ok(Box::new(LigatureSledQueryTx {
-            store: self.store.clone()
+            store: self.store.clone(),
         }))
     }
 
     fn write(&self, dataset: Dataset) -> Result<Box<dyn WriteTx>, LigatureError> {
         Ok(Box::new(LigatureSledWriteTx {
-            store: self.store.clone()
+            store: self.store.clone(),
         }))
     }
 }
