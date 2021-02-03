@@ -2,47 +2,74 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
+//#![deny(missing_docs)]
+
 mod codec;
 
+use codec::{decode_dataset, encode_dataset};
 use ligature::{
     Arrow, Dataset, Ligature, LigatureError, Link, Node, PersistedLink, QueryResult, QueryTx,
     Range, Vertex, WriteTx,
 };
-
-use codec::{decode_dataset, encode_dataset};
+use std::sync::RwLock;
 
 pub struct LigatureSled {
-    store: sled::Db,
+    //TODO eventually I won't need this but for now to support ReadTx range searches I need this lock
+    //TODO an improvement on this would be pre-tree locks
+    store_lock: RwLock<sled::Db>,
 }
 
 impl LigatureSled {
+    /// Create/Open an instance of LigatureSled at the given path.
     pub fn new(path: String) -> Result<Self, sled::Error> {
+        let instance = sled::open(path)?;
         Ok(Self {
-            store: sled::open(path)?,
+            store_lock: RwLock::new(instance),
         })
     }
 
+    /// Create a temporary instance of LigatureSled that is deleted on close.
+    /// Pass Some(String) if you want it located at a given path or None if you want the default from Sled.
     pub fn temp(path: Option<String>) -> Result<Self, sled::Error> {
         match path {
-            None => Ok(Self {
-                store: sled::Config::default().temporary(true).open()?,
-            }),
-            Some(p) => Ok(Self {
-                store: sled::Config::default().temporary(true).path(p).open()?,
-            }),
+            None => {
+                let instance = sled::Config::default().temporary(true).open()?;
+                Ok(Self {
+                    store_lock: RwLock::new(instance),
+                })
+            }
+            Some(p) => {
+                let instance = sled::Config::default().temporary(true).path(p).open()?;
+                Ok(Self {
+                    store_lock: RwLock::new(instance),
+                })
+            }
         }
     }
 
+    /// Create/Open an instance of LigatureSled with the given Sled config.
+    /// Most people won't need this since the defaults are very good.
     pub fn from_config(config: sled::Config) -> Result<Self, sled::Error> {
+        let instance = config.open()?;
         Ok(Self {
-            store: config.open()?,
+            store_lock: RwLock::new(instance),
         })
+    }
+
+    fn internal_dataset_exists(
+        store: &sled::Db,
+        encoded_dataset: &Vec<u8>,
+    ) -> Result<bool, LigatureError> {
+        store
+            .contains_key(&encoded_dataset)
+            .map_err(|_| LigatureError("Error checking for Dataset".to_string()))
     }
 }
 
 impl Ligature for LigatureSled {
     fn all_datasets(&self) -> Box<dyn Iterator<Item = Result<Dataset, LigatureError>>> {
-        let iter = self.store.iter();
+        let store = self.store_lock.read().unwrap(); //to use map_err
+        let iter = store.iter();
         Box::new(iter.map(|ds| {
             match ds {
                 Ok(dataset) => {
@@ -55,6 +82,12 @@ impl Ligature for LigatureSled {
                 Err(_) => Err(LigatureError("Error iterating Datasets.".to_string())),
             }
         }))
+    }
+
+    fn dataset_exists(&self, dataset: &Dataset) -> Result<bool, LigatureError> {
+        let store = self.store_lock.read().unwrap(); //to use map_err
+        let encoded_dataset = encode_dataset(&dataset)?;
+        LigatureSled::internal_dataset_exists(&store, &encoded_dataset)
     }
 
     fn match_datasets(
@@ -72,64 +105,78 @@ impl Ligature for LigatureSled {
         todo!()
     }
 
-    fn create_dataset(&self, dataset: Dataset) -> Result<(), LigatureError> {
-        let encoded_dataset = encode_dataset(&dataset)
-            .map_err(|_| LigatureError("Error checking for Dataset".to_string()))?;
-        let exists = self
-            .store
-            .contains_key(&encoded_dataset)
-            .map_err(|_| LigatureError("Error checking for Dataset".to_string()))?;
-        if !exists {
-            self.store.insert(encoded_dataset, vec![]); //TODO error check here -- probably just map_err and ?
-            self.store.open_tree(dataset.name());
+    fn create_dataset(&self, dataset: &Dataset) -> Result<(), LigatureError> {
+        let store = self.store_lock.write().map_err(|_| {
+            LigatureError("Error starting write transaction when adding dataset.".to_string())
+        })?;
+        let encoded_dataset = encode_dataset(dataset)?;
+        if !LigatureSled::internal_dataset_exists(&store, &encoded_dataset)? {
+            store.insert(encoded_dataset, vec![]); //TODO error check here -- probably just map_err and ?
+            store.open_tree(dataset.name());
         }
         Ok(())
     }
 
-    fn delete_dataset(&self, dataset: Dataset) -> Result<(), LigatureError> {
-        let encoded_dataset = encode_dataset(&dataset)
-            .map_err(|_| LigatureError("Error checking for Dataset".to_string()))?;
-        let exists = self
-            .store
-            .contains_key(&encoded_dataset)
-            .map_err(|_| LigatureError("Error checking for Dataset".to_string()))?;
-        if exists {
-            self.store.remove(&encoded_dataset);
-            self.store.drop_tree(dataset.name());
+    fn delete_dataset(&self, dataset: &Dataset) -> Result<(), LigatureError> {
+        let store = self.store_lock.write().map_err(|_| {
+            LigatureError("Error starting write transaction when deleting dataset.".to_string())
+        })?;
+        let encoded_dataset = encode_dataset(dataset)?;
+        if LigatureSled::internal_dataset_exists(&store, &encoded_dataset)? {
+            store.remove(&encoded_dataset);
+            store.drop_tree(dataset.name());
         }
         Ok(())
     }
 
-    fn query(&self, dataset: Dataset) -> Result<Box<dyn QueryTx>, LigatureError> {
-        //TODO this method should start a readtx in sled
-        //TODO this should check the subtree exists
-        //TODO return error if dataset doesn't exist
-        //TODO pass only the subtree to LigatureSledQueryTx
-        Ok(Box::new(LigatureSledQueryTx {
-            store: self.store.clone(),
-        }))
+    fn query(&self, dataset: &Dataset) -> Result<Box<dyn QueryTx>, LigatureError> {
+        let store = self
+            .store_lock
+            .read()
+            .map_err(|_| LigatureError("Error starting query transaction.".to_string()))?;
+        let encoded_dataset = encode_dataset(dataset)?;
+        if LigatureSled::internal_dataset_exists(&store, &encoded_dataset)? {
+            Ok(Box::new(LigatureSledQueryTx {
+                store: store
+                    .open_tree(dataset.name())
+                    .map_err(|_| LigatureError("Error starting query transaction.".to_string()))?,
+            }))
+        } else {
+            Err(LigatureError(
+                "Error starting query transaction.".to_string(),
+            ))
+        }
     }
 
-    fn write(&self, dataset: Dataset) -> Result<Box<dyn WriteTx>, LigatureError> {
-        Ok(Box::new(LigatureSledWriteTx {
-            store: self.store.clone(),
-        }))
+    fn write(&self, dataset: &Dataset) -> Result<Box<dyn WriteTx>, LigatureError> {
+        let store = self
+            .store_lock
+            .write()
+            .map_err(|_| LigatureError("Error starting write transaction.".to_string()))?;
+        let encoded_dataset = encode_dataset(dataset)?;
+        if LigatureSled::internal_dataset_exists(&store, &encoded_dataset)? {
+            Ok(Box::new(LigatureSledWriteTx {
+                store: store
+                    .open_tree(dataset.name())
+                    .map_err(|_| LigatureError("Error starting query transaction.".to_string()))?,
+            }))
+        } else {
+            Err(LigatureError(
+                "Error starting write transaction.".to_string(),
+            ))
+        }
     }
 }
 
 struct LigatureSledQueryTx {
-    store: sled::Db,
+    store: sled::Tree,
 }
 
 impl QueryTx for LigatureSledQueryTx {
     fn all_links(&self) -> Box<dyn Iterator<Item = Result<PersistedLink, LigatureError>>> {
-        //check dataset exists
-        //
-        todo!()
+        Box::new(std::iter::empty())
     }
 
-    /// Returns all PersistedLinks that match the given criteria.
-    /// If a parameter is None then it matches all, so passing all Nones is the same as calling all_statements.
     fn match_links(
         &self,
         source: Option<Vertex>,
@@ -139,8 +186,6 @@ impl QueryTx for LigatureSledQueryTx {
         todo!()
     }
 
-    /// Retuns all PersistedLinks that match the given criteria.
-    /// If a parameter is None then it matches all.
     fn match_links_range(
         &self,
         source: Option<Vertex>,
@@ -150,7 +195,6 @@ impl QueryTx for LigatureSledQueryTx {
         todo!()
     }
 
-    /// Returns the PersistedLink for the given context.
     fn link_for_context(&self, context: Node) -> Result<PersistedLink, LigatureError> {
         todo!()
     }
@@ -161,7 +205,7 @@ impl QueryTx for LigatureSledQueryTx {
 }
 
 struct LigatureSledWriteTx {
-    store: sled::Db,
+    store: sled::Tree,
 }
 
 impl WriteTx for LigatureSledWriteTx {
