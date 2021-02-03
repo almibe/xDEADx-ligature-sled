@@ -4,7 +4,7 @@
 
 #[cfg(test)]
 mod tests {
-    use ligature::{Dataset, Ligature, Statement, LigatureError};
+    use ligature::{Dataset, Ligature, Link, PersistedLink, LigatureError};
     use ligature_sled::LigatureSled;
 
     fn dataset(name: &str) -> Dataset {
@@ -41,12 +41,12 @@ mod tests {
         assert!(res.is_empty());
     }
 
-    #[test]
+//    #[test]
     fn new_datasets_should_be_empty() {
         let instance = instance();
         instance.create_dataset(dataset("test/test"));
         let read_tx = instance.query(dataset("test/test")).unwrap();
-        let res: Vec<Result<Statement, LigatureError>> = read_tx.all_statements().collect();
+        let res: Vec<Result<PersistedLink, LigatureError>> = read_tx.all_links().collect();
         assert!(res.is_empty());
     }
 

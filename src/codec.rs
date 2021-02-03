@@ -18,7 +18,9 @@ pub fn encode_dataset(dataset: &Dataset) -> Result<Vec<u8>, Error> {
 }
 
 pub fn decode_dataset(dataset: Vec<u8>) -> Result<Dataset, Error> {
-    bincode::deserialize(&dataset)
+    let mut dataset_clone = dataset.clone();
+    dataset_clone.remove(0);
+    bincode::deserialize(&dataset_clone)
 }
 
 pub fn encode_link(link: &Link) -> Vec<u8> {

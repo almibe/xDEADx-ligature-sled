@@ -8,10 +8,16 @@ Each dataset then has its own tree where the records for a given dataset is stor
 Inside of a dataset's tree statements are stored in a way that is inspired by the hexastore architecture.
 Each part of statement is stored and given a unique id.
 Those ids are then used to store the following permutations.
-* SPOG
-* SOPG
-* PSOG
-* POSG
-* POSG
-* OPSG
-* GSPO
+`S = Source; A = Arrow; T = Target; C = Context;`
+* `SATC`
+* `STAC`
+* `ASTC`
+* `ATSC`
+* `ATSC`
+* `TASC`
+* `CSPT`
+
+## Building
+This project uses cargo for building.
+See https://rustup.rs/ for instructions on installing the Rust toolchain.
+See https://doc.rust-lang.org/cargo/ for documentation on cargo in general.

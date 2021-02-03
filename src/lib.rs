@@ -74,10 +74,13 @@ impl Ligature for LigatureSled {
     }
 
     fn delete_dataset(&self, dataset: Dataset) -> Result<(), LigatureError> {
-        //check if dataset exists
-        //remove dataset from default tree
-        //drop dataset's tree
-        todo!()
+        let encoded_dataset = encode_dataset(&dataset).map_err(|_| LigatureError("Error checking for Dataset".to_string()))?;
+        let exists = self.store.contains_key(&encoded_dataset).map_err(|_| LigatureError("Error checking for Dataset".to_string()))?;
+        if exists {
+            self.store.remove(&encoded_dataset);
+            self.store.drop_tree(dataset.name());
+        }
+        Ok(())
     }
 
     fn query(&self, dataset: Dataset) -> Result<Box<dyn QueryTx>, LigatureError> {
