@@ -4,7 +4,7 @@
 
 #[cfg(test)]
 mod tests {
-    use ligature::{Dataset, Ligature, LigatureError, Link, PersistedLink};
+    use ligature::{Dataset, Ligature, LigatureError, Link, PersistedLink, Vertex, Arrow};
     use ligature_sled::LigatureSled;
 
     fn dataset(name: &str) -> Dataset {
@@ -24,19 +24,22 @@ mod tests {
 
     #[test]
     fn creating_a_new_dataset() {
-        let mut instance = instance();
-        instance.create_dataset(dataset("test/test"));
+        let test_dataset = dataset("test/test");
+        let instance = instance();
+        instance.create_dataset(&test_dataset);
         let res: Vec<Result<Dataset, LigatureError>> = instance.all_datasets().collect();
-        let expected: Vec<Result<Dataset, LigatureError>> = vec![Ok(dataset("test/test"))];
+        let expected: Vec<Result<Dataset, LigatureError>> = vec![Ok(test_dataset)];
         assert_eq!(res, expected);
     }
 
     #[test]
     fn access_and_delete_new_dataset() {
-        let mut instance = instance();
-        instance.create_dataset(dataset("test/test"));
-        instance.delete_dataset(dataset("test/test"));
-        instance.delete_dataset(dataset("test/test2"));
+        let instance = instance();
+        let test_dataset = dataset("test/test");
+        let test_dataset2 = dataset("test/test2");
+        instance.create_dataset(&test_dataset);
+        instance.delete_dataset(&test_dataset);
+        instance.delete_dataset(&test_dataset2);
         let res: Vec<Result<Dataset, LigatureError>> = instance.all_datasets().collect();
         assert!(res.is_empty());
     }
@@ -44,25 +47,60 @@ mod tests {
     #[test]
     fn new_datasets_should_be_empty() {
         let instance = instance();
-        instance.create_dataset(dataset("test/test"));
-        let read_tx = instance.query(dataset("test/test")).unwrap();
+        let test_dataset = dataset("test/test");
+        instance.create_dataset(&test_dataset);
+        let read_tx = instance.query(&test_dataset).unwrap();
         let res: Vec<Result<PersistedLink, LigatureError>> = read_tx.all_links().collect();
         assert!(res.is_empty());
     }
 
+    #[test]
+    fn add_a_basic_link() {
+        let instance = instance();
+        let test_dataset = dataset("test/test");
+        instance.create_dataset(&test_dataset);
+        let write_tx = instance.write(&test_dataset).unwrap();
+        let source = Vertex::BooleanLiteral(true);
+        let arrow = Arrow::new("equals").unwrap();
+        let target = Vertex::BooleanLiteral(true);
+        let link = Link {
+            source: source,
+            arrow: arrow,
+            target: target,
+        };
+        write_tx.add_link(link);
+        write_tx.commit();
+        let read_tx = instance.query(&test_dataset).unwrap();
+        let res: Vec<Result<PersistedLink, LigatureError>> = read_tx.all_links().collect();
+        assert_eq!(res.len(), 1); //TODO check instance not just number
+    }
+
     // #[test]
-    // fn new_blank_node() {
-    //     let instance = LigatureMock::new();
-    //     let write_tx = instance.write();
-    //     let nn1 = write_tx.newNode(testDataset);
-    //     let nn2 = write_tx.newNode(testDataset);
-    //     write_tx.addStatement(testDataset, Statement(nn1, a, nn2));
-    //     let nn3 = write_tx.newNode(testDataset);
-    //     let nn4 = write_tx.newNode(testDataset);
-    //     write_tx.addStatement(testDataset, Statement(nn3, a, nn4));
+    // fn new_node() {
+    //     let instance = instance();
+    //     let test_dataset = dataset("test/test");
+    //     instance.create_dataset(&test_dataset);
+    //     let write_tx = instance.write(&test_dataset).unwrap();
+    //     let n1 = write_tx.new_node();
+    //     let arrow = Arrow("arrow");
+    //     let n2 = write_tx.new_node();
+    //     let link = Link {
+    //         source: n1,
+    //         arrow: arrow,
+    //         target: n2,
+    //     };
+    //     let persisted_link = write_tx.add_link(&link);
+    //     let nn3 = write_tx.new_node();
+    //     let nn4 = write_tx.new_node();
+    //     let link2 = Link {
+    //         source: n3,
+    //         arrow: arrow,
+    //         target: n4,
+    //     }
+    //     let persisted_link2 = write_tx.add_link(link2);
     //     write_tx.commit();
     //     let read_tx = instance.query();
-    //     let res = read_tx.allStatements(testDataset).toListL;
+    //     let res = read_tx.allStatements(&test_dataset).toListL;
     //     assert_equals!(
     //         res.map, /*{ _.statement }*/
     //         Set(
@@ -76,14 +114,14 @@ mod tests {
     // fn adding_statements_to_datasets() {
     //     let instance = LigatureMock::new();
     //     let write_tx = instance.write();
-    //     let ent1 = tx.newNode(testDataset);
-    //     let ent2 = tx.newNode(testDataset);
-    //     tx.addStatement(testDataset, Statement(ent1, a, ent2));
-    //     tx.addStatement(testDataset, Statement(ent1, a, ent2));
+    //     let ent1 = tx.newNode(test_dataset);
+    //     let ent2 = tx.newNode(test_dataset);
+    //     tx.addStatement(test_dataset, Statement(ent1, a, ent2));
+    //     tx.addStatement(test_dataset, Statement(ent1, a, ent2));
     //     write_tx.commit();
     //     let read_tx = instance.query();
     //     let res = read_tx
-    //         .allStatements(testDataset)
+    //         .allStatements(test_dataset)
     //         .map /*{ _.statement }*/
     //         .toListL;
     //     assert_equals!(
@@ -99,17 +137,17 @@ mod tests {
     // fn removing_statements_from_datasets() {
     //     let instance = LigatureMock::new();
     //     let write_tx = instance.write();
-    //     let nn1 = tx.newNode(testDataset);
-    //     let nn2 = tx.newNode(testDataset);
-    //     let nn3 = tx.newNode(testDataset);
-    //     tx.addStatement(testDataset, Statement(nn1, a, nn2));
-    //     tx.addStatement(testDataset, Statement(nn3, a, nn2));
-    //     tx.removeStatement(testDataset, Statement(nn1, a, nn2));
-    //     tx.removeStatement(testDataset, Statement(nn1, a, nn2));
-    //     tx.removeStatement(testDataset, Statement(nn2, a, nn1));
+    //     let nn1 = tx.newNode(test_dataset);
+    //     let nn2 = tx.newNode(test_dataset);
+    //     let nn3 = tx.newNode(test_dataset);
+    //     tx.addStatement(test_dataset, Statement(nn1, a, nn2));
+    //     tx.addStatement(test_dataset, Statement(nn3, a, nn2));
+    //     tx.removeStatement(test_dataset, Statement(nn1, a, nn2));
+    //     tx.removeStatement(test_dataset, Statement(nn1, a, nn2));
+    //     tx.removeStatement(test_dataset, Statement(nn2, a, nn1));
     //     let read_tx = instance.query();
     //     let res = tx
-    //         .allStatements(testDataset)
+    //         .allStatements(test_dataset)
     //         .map /*{
     //           _.statement
     //         }*/
@@ -123,8 +161,8 @@ mod tests {
 
     //     let (r1, r2) = instance.read.use { tx =>
     //       for {
-    //         r1 = tx.matchStatements(testDataset, null, null, StringLiteral("French")).toListL
-    //         r2 = tx.matchStatements(testDataset, null, a, null).toListL
+    //         r1 = tx.matchStatements(test_dataset, null, null, StringLiteral("French")).toListL
+    //         r2 = tx.matchStatements(test_dataset, null, a, null).toListL
     //       } yield(r1, r2)
     //     }
     //   }
@@ -136,32 +174,32 @@ mod tests {
     //     lateinit var valjean: Node
     //     lateinit var javert: Node
     //     instance.write.use { tx =>
-    //       valjean = tx.newNode(testDataset)
-    //       javert = tx.newNode(testDataset)
-    //       tx.addStatement(testDataset, Statement(valjean, Predicate("nationality"), StringLiteral("French")))
-    //       tx.addStatement(testDataset, Statement(valjean, Predicate("prisonNumber"), LongLiteral(24601)))
-    //       tx.addStatement(testDataset, Statement(javert, Predicate("nationality"), StringLiteral("French")))
+    //       valjean = tx.newNode(test_dataset)
+    //       javert = tx.newNode(test_dataset)
+    //       tx.addStatement(test_dataset, Statement(valjean, Predicate("nationality"), StringLiteral("French")))
+    //       tx.addStatement(test_dataset, Statement(valjean, Predicate("prisonNumber"), LongLiteral(24601)))
+    //       tx.addStatement(test_dataset, Statement(javert, Predicate("nationality"), StringLiteral("French")))
     //     }
     //     instance.read.use { tx =>
-    //       tx.matchStatements(testDataset, null, null, StringLiteral("French"))
+    //       tx.matchStatements(test_dataset, null, null, StringLiteral("French"))
     //               .toSet() shouldBe setOf(
     //                   Statement(valjean, Predicate("nationality"), StringLiteral("French")),
     //                   Statement(javert, Predicate("nationality"), StringLiteral("French"))
     //       )
-    //       tx.matchStatements(testDataset, null, null, LongLiteral(24601))
+    //       tx.matchStatements(test_dataset, null, null, LongLiteral(24601))
     //               .toSet() shouldBe setOf(
     //                   Statement(valjean, Predicate("prisonNumber"), LongLiteral(24601))
     //       )
-    //       tx.matchStatements(testDataset, valjean)
+    //       tx.matchStatements(test_dataset, valjean)
     //               .toSet() shouldBe setOf(
     //                   Statement(valjean, Predicate("nationality"), StringLiteral("French")),
     //                   Statement(valjean, Predicate("prisonNumber"), LongLiteral(24601))
     //       )
-    //       tx.matchStatements(testDataset, javert, Predicate("nationality"), StringLiteral("French"))
+    //       tx.matchStatements(test_dataset, javert, Predicate("nationality"), StringLiteral("French"))
     //               .toSet() shouldBe setOf(
     //                   Statement(javert, Predicate("nationality"), StringLiteral("French"))
     //       )
-    //       tx.matchStatements(testDataset, null, null, null)
+    //       tx.matchStatements(test_dataset, null, null, null)
     //               .toSet() shouldBe setOf(
     //                   Statement(valjean, Predicate("nationality"), StringLiteral("French")),
     //                   Statement(valjean, Predicate("prisonNumber"), LongLiteral(24601)),
@@ -179,28 +217,28 @@ mod tests {
     //     lateinit var javert: Node
     //     lateinit var trout: Node
     //     instance.write.use { tx =>
-    //       valjean = tx.newNode(testDataset)
-    //       javert = tx.newNode(testDataset)
-    //       trout = tx.newNode(testDataset)
-    //       tx.addStatement(testDataset, Statement(valjean, Predicate("nationality"), StringLiteral("French")))
-    //       tx.addStatement(testDataset, Statement(valjean, Predicate("prisonNumber"), LongLiteral(24601)))
-    //       tx.addStatement(testDataset, Statement(javert, Predicate("nationality"), StringLiteral("French")))
-    //       tx.addStatement(testDataset, Statement(javert, Predicate("prisonNumber"), LongLiteral(24602)))
-    //       tx.addStatement(testDataset, Statement(trout, Predicate("nationality"), StringLiteral("American")))
-    //       tx.addStatement(testDataset, Statement(trout, Predicate("prisonNumber"), LongLiteral(24603)))
+    //       valjean = tx.newNode(test_dataset)
+    //       javert = tx.newNode(test_dataset)
+    //       trout = tx.newNode(test_dataset)
+    //       tx.addStatement(test_dataset, Statement(valjean, Predicate("nationality"), StringLiteral("French")))
+    //       tx.addStatement(test_dataset, Statement(valjean, Predicate("prisonNumber"), LongLiteral(24601)))
+    //       tx.addStatement(test_dataset, Statement(javert, Predicate("nationality"), StringLiteral("French")))
+    //       tx.addStatement(test_dataset, Statement(javert, Predicate("prisonNumber"), LongLiteral(24602)))
+    //       tx.addStatement(test_dataset, Statement(trout, Predicate("nationality"), StringLiteral("American")))
+    //       tx.addStatement(test_dataset, Statement(trout, Predicate("prisonNumber"), LongLiteral(24603)))
     //     }
     //     instance.read.use { tx =>
-    //       tx.matchStatements(testDataset, null, null, StringLiteralRange("French", "German"))
+    //       tx.matchStatements(test_dataset, null, null, StringLiteralRange("French", "German"))
     //               .toSet() shouldBe setOf(
     //                   Statement(valjean, Predicate("nationality"), StringLiteral("French")),
     //                   Statement(javert, Predicate("nationality"), StringLiteral("French"))
     //       )
-    //       tx.matchStatements(testDataset, null, null, LongLiteralRange(24601, 24603))
+    //       tx.matchStatements(test_dataset, null, null, LongLiteralRange(24601, 24603))
     //               .toSet() shouldBe setOf(
     //                   Statement(valjean, Predicate("prisonNumber"), LongLiteral(24601)),
     //                   Statement(javert, Predicate("prisonNumber"), LongLiteral(24602))
     //       )
-    //       tx.matchStatements(testDataset, valjean, null, LongLiteralRange(24601, 24603))
+    //       tx.matchStatements(test_dataset, valjean, null, LongLiteralRange(24601, 24603))
     //               .toSet() shouldBe setOf(
     //                   Statement(valjean, Predicate("prisonNumber"), LongLiteral(24601))
     //       )
