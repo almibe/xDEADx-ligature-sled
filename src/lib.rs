@@ -6,7 +6,7 @@
 
 mod codec;
 
-use codec::{decode_dataset, encode_dataset};
+use codec::{decode_dataset, encode_dataset, encode_dataset_match};
 use ligature::{
     Arrow, Dataset, Ligature, LigatureError, Link, Node, PersistedLink, QueryResult, QueryTx,
     Range, Vertex, WriteTx,
@@ -69,7 +69,7 @@ impl LigatureSled {
 impl Ligature for LigatureSled {
     fn all_datasets(&self) -> Box<dyn Iterator<Item = Result<Dataset, LigatureError>>> {
         let store = self.store_lock.read().unwrap(); //to use map_err
-        let iter = store.iter();
+        let iter = store.scan_prefix(vec![0]); //store.iter();
         Box::new(iter.map(|ds| {
             match ds {
                 Ok(dataset) => {
@@ -94,7 +94,32 @@ impl Ligature for LigatureSled {
         &self,
         prefix: &str,
     ) -> Box<dyn Iterator<Item = Result<Dataset, LigatureError>>> {
-        todo!()
+        let store_res = self.store_lock.read().map_err(|_| {
+            LigatureError(
+                "Error starting read transaction when matching dataset prefixes.".to_string(),
+            )
+        });
+        match store_res {
+            Ok(store) => {
+                let encoded_prefix_res = encode_dataset_match(prefix);
+                match encoded_prefix_res {
+                    Ok(encoded_prefix) => {
+                        println!("XXX {:?}", encoded_prefix);
+                        let res = store.scan_prefix(encoded_prefix);
+                        Box::new(res.map(|value_res| match value_res {
+                            Ok(value) => decode_dataset(value.0.to_vec()).map_err(|_| {
+                                LigatureError(format!("Error decoding Dataset {:?}", value.0))
+                            }),
+                            Err(e) => Err(LigatureError(
+                                "Error presfix matching Datasets.".to_string(),
+                            )),
+                        }))
+                    }
+                    Err(e) => Box::new(std::iter::once(Err(e))),
+                }
+            }
+            Err(e) => Box::new(std::iter::once(Err(e))),
+        }
     }
 
     fn match_datasets_range(
@@ -111,12 +136,12 @@ impl Ligature for LigatureSled {
         })?;
         let encoded_dataset = encode_dataset(dataset)?;
         if !LigatureSled::internal_dataset_exists(&store, &encoded_dataset)? {
-            store.insert(encoded_dataset, vec![]).map_err(|_| {
-                LigatureError("Error starting inserting dataset.".to_string())
-            })?;
-            store.open_tree(dataset.name()).map_err(|_| {
-                LigatureError("Error starting inserting dataset.".to_string())
-            })?;
+            store
+                .insert(encoded_dataset, vec![])
+                .map_err(|_| LigatureError("Error starting inserting dataset.".to_string()))?;
+            store
+                .open_tree(dataset.name())
+                .map_err(|_| LigatureError("Error starting inserting dataset.".to_string()))?;
         }
         Ok(())
     }

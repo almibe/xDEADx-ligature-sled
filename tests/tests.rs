@@ -4,7 +4,7 @@
 
 #[cfg(test)]
 mod tests {
-    use ligature::{Dataset, Ligature, LigatureError, Link, PersistedLink, Vertex, Arrow};
+    use ligature::{Arrow, Dataset, Ligature, LigatureError, Link, PersistedLink, Vertex};
     use ligature_sled::LigatureSled;
 
     fn dataset(name: &str) -> Dataset {
@@ -53,9 +53,12 @@ mod tests {
         instance.create_dataset(&test_dataset);
         instance.create_dataset(&test_dataset2);
         instance.create_dataset(&test_dataset3);
-        let res1: Vec<Result<Dataset, LigatureError>> = instance.match_datasets_prefix("test").collect();
-        let res2: Vec<Result<Dataset, LigatureError>> = instance.match_datasets_prefix("test/").collect();
-        let res3: Vec<Result<Dataset, LigatureError>> = instance.match_datasets_prefix("snoo").collect();
+        let res1: Vec<Result<Dataset, LigatureError>> =
+            instance.match_datasets_prefix("test").collect();
+        let res2: Vec<Result<Dataset, LigatureError>> =
+            instance.match_datasets_prefix("test/").collect();
+        let res3: Vec<Result<Dataset, LigatureError>> =
+            instance.match_datasets_prefix("snoo").collect();
         assert_eq!(res1.len(), 3);
         assert_eq!(res2.len(), 2);
         assert_eq!(res3.len(), 0);
@@ -87,8 +90,6 @@ mod tests {
         let res: Vec<Result<PersistedLink, LigatureError>> = read_tx.all_links().collect();
         assert!(res.is_empty());
     }
-
-
 
     // #[test]
     // fn add_a_basic_link() {

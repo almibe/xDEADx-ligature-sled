@@ -10,18 +10,27 @@ use ligature::{
 const DATASET_PREFIX: u8 = 0;
 
 pub fn encode_dataset(dataset: &Dataset) -> Result<Vec<u8>, LigatureError> {
-    let encoded_dataset = bincode::serialize(dataset.name())
-        .map_err(|_| LigatureError("Error checking for Dataset".to_string()))?;
+    let encoded_dataset = dataset.name().as_bytes();
+        //.map_err(|_| LigatureError("Error encoding Dataset".to_string()))?;
     let mut res = vec![DATASET_PREFIX];
-    res.extend(&encoded_dataset);
+    res.extend(encoded_dataset);
+    Ok(res)
+}
+
+pub fn encode_dataset_match(dataset_match: &str) -> Result<Vec<u8>, LigatureError> {
+    let encoded_dataset = dataset_match.as_bytes();
+        //.map_err(|_| LigatureError(format!("Error encoding Dataset match {}", dataset_match)))?;
+    let mut res = vec![DATASET_PREFIX];
+    res.extend(encoded_dataset);
     Ok(res)
 }
 
 pub fn decode_dataset(dataset: Vec<u8>) -> Result<Dataset, LigatureError> {
     let mut dataset_clone = dataset.clone();
     dataset_clone.remove(0);
-    bincode::deserialize(&dataset_clone)
-        .map_err(|_| LigatureError("Error checking for Dataset".to_string()))
+    let name = std::str::from_utf8(&dataset_clone)
+        .map_err(|_| LigatureError("Error checking for Dataset".to_string()))?;
+    Dataset::new(name)
 }
 
 pub fn encode_vertex(vertex: &Vertex) -> Vec<u8> {
