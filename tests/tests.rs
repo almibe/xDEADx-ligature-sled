@@ -33,7 +33,41 @@ mod tests {
     }
 
     #[test]
-    fn access_and_delete_new_dataset() {
+    fn check_if_datasets_exist() {
+        let test_dataset = dataset("test/test");
+        let test_dataset2 = dataset("test/test2");
+        let instance = instance();
+        instance.create_dataset(&test_dataset);
+        let res1 = instance.dataset_exists(&test_dataset).unwrap();
+        let res2 = instance.dataset_exists(&test_dataset2).unwrap();
+        assert!(res1);
+        assert!(!res2);
+    }
+
+    #[test]
+    fn match_datasets_prefix() {
+        let test_dataset = dataset("test/test");
+        let test_dataset2 = dataset("test/test2");
+        let test_dataset3 = dataset("test3/test");
+        let instance = instance();
+        instance.create_dataset(&test_dataset);
+        instance.create_dataset(&test_dataset2);
+        instance.create_dataset(&test_dataset3);
+        let res1: Vec<Result<Dataset, LigatureError>> = instance.match_datasets_prefix("test").collect();
+        let res2: Vec<Result<Dataset, LigatureError>> = instance.match_datasets_prefix("test/").collect();
+        let res3: Vec<Result<Dataset, LigatureError>> = instance.match_datasets_prefix("snoo").collect();
+        assert_eq!(res1.len(), 3);
+        assert_eq!(res2.len(), 2);
+        assert_eq!(res3.len(), 0);
+    }
+
+    #[test]
+    fn match_datasets_range() {
+        todo!()
+    }
+
+    #[test]
+    fn create_and_delete_new_dataset() {
         let instance = instance();
         let test_dataset = dataset("test/test");
         let test_dataset2 = dataset("test/test2");
@@ -54,26 +88,28 @@ mod tests {
         assert!(res.is_empty());
     }
 
-    #[test]
-    fn add_a_basic_link() {
-        let instance = instance();
-        let test_dataset = dataset("test/test");
-        instance.create_dataset(&test_dataset);
-        let write_tx = instance.write(&test_dataset).unwrap();
-        let source = Vertex::BooleanLiteral(true);
-        let arrow = Arrow::new("equals").unwrap();
-        let target = Vertex::BooleanLiteral(true);
-        let link = Link {
-            source: source,
-            arrow: arrow,
-            target: target,
-        };
-        write_tx.add_link(link);
-        write_tx.commit();
-        let read_tx = instance.query(&test_dataset).unwrap();
-        let res: Vec<Result<PersistedLink, LigatureError>> = read_tx.all_links().collect();
-        assert_eq!(res.len(), 1); //TODO check instance not just number
-    }
+
+
+    // #[test]
+    // fn add_a_basic_link() {
+    //     let instance = instance();
+    //     let test_dataset = dataset("test/test");
+    //     instance.create_dataset(&test_dataset);
+    //     let write_tx = instance.write(&test_dataset).unwrap();
+    //     let source = Vertex::BooleanLiteral(true);
+    //     let arrow = Arrow::new("equals").unwrap();
+    //     let target = Vertex::BooleanLiteral(true);
+    //     let link = Link {
+    //         source: source,
+    //         arrow: arrow,
+    //         target: target,
+    //     };
+    //     write_tx.add_link(link);
+    //     write_tx.commit();
+    //     let read_tx = instance.query(&test_dataset).unwrap();
+    //     let res: Vec<Result<PersistedLink, LigatureError>> = read_tx.all_links().collect();
+    //     assert_eq!(res.len(), 1); //TODO check instance not just number
+    // }
 
     // #[test]
     // fn new_node() {

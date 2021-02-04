@@ -90,7 +90,7 @@ impl Ligature for LigatureSled {
         LigatureSled::internal_dataset_exists(&store, &encoded_dataset)
     }
 
-    fn match_datasets(
+    fn match_datasets_prefix(
         &self,
         prefix: &str,
     ) -> Box<dyn Iterator<Item = Result<Dataset, LigatureError>>> {
@@ -111,8 +111,12 @@ impl Ligature for LigatureSled {
         })?;
         let encoded_dataset = encode_dataset(dataset)?;
         if !LigatureSled::internal_dataset_exists(&store, &encoded_dataset)? {
-            store.insert(encoded_dataset, vec![]); //TODO error check here -- probably just map_err and ?
-            store.open_tree(dataset.name());
+            store.insert(encoded_dataset, vec![]).map_err(|_| {
+                LigatureError("Error starting inserting dataset.".to_string())
+            })?;
+            store.open_tree(dataset.name()).map_err(|_| {
+                LigatureError("Error starting inserting dataset.".to_string())
+            })?;
         }
         Ok(())
     }
@@ -195,11 +199,11 @@ impl QueryTx for LigatureSledQueryTx {
         todo!()
     }
 
-    fn link_for_context(&self, context: Node) -> Result<PersistedLink, LigatureError> {
+    fn link_for_context(&self, context: &Node) -> Result<Option<PersistedLink>, LigatureError> {
         todo!()
     }
 
-    fn wander_query(&self, query: String) -> Result<QueryResult, LigatureError> {
+    fn wander_query(&self, query: &str) -> Result<QueryResult, LigatureError> {
         todo!()
     }
 }
@@ -213,11 +217,11 @@ impl WriteTx for LigatureSledWriteTx {
         todo!()
     }
 
-    fn add_link(&self, link: Link) -> Result<PersistedLink, LigatureError> {
+    fn add_link(&self, link: &Link) -> Result<PersistedLink, LigatureError> {
         todo!()
     }
 
-    fn remove_link(&self, persisted_link: PersistedLink) -> Result<(), LigatureError> {
+    fn remove_link(&self, persisted_link: &PersistedLink) -> Result<(), LigatureError> {
         todo!()
     }
 
