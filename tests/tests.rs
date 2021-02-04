@@ -66,7 +66,31 @@ mod tests {
 
     #[test]
     fn match_datasets_range() {
-        todo!()
+        let datasets = vec![
+            dataset("a"),
+            dataset("app"),
+            dataset("b"),
+            dataset("be"),
+            dataset("bee"),
+            dataset("test1/test"),
+            dataset("test2/test2"),
+            dataset("test3/test"),
+            dataset("test4"),
+            dataset("z"),
+        ];
+        let instance = instance();
+        datasets.iter().for_each(|dataset| {
+            instance.create_dataset(&dataset);
+        });
+        let res1: Vec<Result<Dataset, LigatureError>> =
+            instance.match_datasets_range("a", "b").collect();
+        let res2: Vec<Result<Dataset, LigatureError>> =
+            instance.match_datasets_range("be", "test3").collect();
+        let res3: Vec<Result<Dataset, LigatureError>> =
+            instance.match_datasets_range("snoo", "zz").collect();
+        assert_eq!(res1.len(), 2);
+        assert_eq!(res2.len(), 4);
+        assert_eq!(res3.len(), 5);
     }
 
     #[test]

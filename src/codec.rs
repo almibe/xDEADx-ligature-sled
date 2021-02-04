@@ -9,20 +9,18 @@ use ligature::{
 
 const DATASET_PREFIX: u8 = 0;
 
-pub fn encode_dataset(dataset: &Dataset) -> Result<Vec<u8>, LigatureError> {
+pub fn encode_dataset(dataset: &Dataset) -> Vec<u8> {
     let encoded_dataset = dataset.name().as_bytes();
-        //.map_err(|_| LigatureError("Error encoding Dataset".to_string()))?;
     let mut res = vec![DATASET_PREFIX];
     res.extend(encoded_dataset);
-    Ok(res)
+    res
 }
 
-pub fn encode_dataset_match(dataset_match: &str) -> Result<Vec<u8>, LigatureError> {
+pub fn encode_dataset_match(dataset_match: &str) -> Vec<u8> {
     let encoded_dataset = dataset_match.as_bytes();
-        //.map_err(|_| LigatureError(format!("Error encoding Dataset match {}", dataset_match)))?;
     let mut res = vec![DATASET_PREFIX];
     res.extend(encoded_dataset);
-    Ok(res)
+    res
 }
 
 pub fn decode_dataset(dataset: Vec<u8>) -> Result<Dataset, LigatureError> {

@@ -86,7 +86,7 @@ impl Ligature for LigatureSled {
 
     fn dataset_exists(&self, dataset: &Dataset) -> Result<bool, LigatureError> {
         let store = self.store_lock.read().unwrap(); //to use map_err
-        let encoded_dataset = encode_dataset(&dataset)?;
+        let encoded_dataset = encode_dataset(&dataset);
         LigatureSled::internal_dataset_exists(&store, &encoded_dataset)
     }
 
@@ -101,22 +101,16 @@ impl Ligature for LigatureSled {
         });
         match store_res {
             Ok(store) => {
-                let encoded_prefix_res = encode_dataset_match(prefix);
-                match encoded_prefix_res {
-                    Ok(encoded_prefix) => {
-                        println!("XXX {:?}", encoded_prefix);
-                        let res = store.scan_prefix(encoded_prefix);
-                        Box::new(res.map(|value_res| match value_res {
-                            Ok(value) => decode_dataset(value.0.to_vec()).map_err(|_| {
-                                LigatureError(format!("Error decoding Dataset {:?}", value.0))
-                            }),
-                            Err(e) => Err(LigatureError(
-                                "Error presfix matching Datasets.".to_string(),
-                            )),
-                        }))
-                    }
-                    Err(e) => Box::new(std::iter::once(Err(e))),
-                }
+                let encoded_prefix = encode_dataset_match(prefix);
+                let res = store.scan_prefix(encoded_prefix);
+                Box::new(res.map(|value_res| match value_res {
+                    Ok(value) => decode_dataset(value.0.to_vec()).map_err(|_| {
+                        LigatureError(format!("Error decoding Dataset {:?}", value.0))
+                    }),
+                    Err(e) => Err(LigatureError(
+                        "Error presfix matching Datasets.".to_string(),
+                    )),
+                }))                    
             }
             Err(e) => Box::new(std::iter::once(Err(e))),
         }
@@ -127,14 +121,34 @@ impl Ligature for LigatureSled {
         from: &str,
         to: &str,
     ) -> Box<dyn Iterator<Item = Result<Dataset, LigatureError>>> {
-        todo!()
+        let store_res = self.store_lock.read().map_err(|_| {
+            LigatureError(
+                "Error starting read transaction when matching dataset ranges.".to_string(),
+            )
+        });
+        match store_res {
+            Ok(store) => {
+                let encoded_from = encode_dataset_match(from);
+                let encoded_to = encode_dataset_match(to);
+                let res = store.range(encoded_from..encoded_to);
+                Box::new(res.map(|value_res| match value_res {
+                    Ok(value) => decode_dataset(value.0.to_vec()).map_err(|_| {
+                        LigatureError(format!("Error decoding Dataset {:?}", value.0))
+                    }),
+                    Err(e) => Err(LigatureError(
+                        "Error presfix matching Datasets.".to_string(),
+                    )),
+                }))
+            }
+            Err(e) => Box::new(std::iter::once(Err(e))),
+        }
     }
 
     fn create_dataset(&self, dataset: &Dataset) -> Result<(), LigatureError> {
         let store = self.store_lock.write().map_err(|_| {
             LigatureError("Error starting write transaction when adding dataset.".to_string())
         })?;
-        let encoded_dataset = encode_dataset(dataset)?;
+        let encoded_dataset = encode_dataset(dataset);
         if !LigatureSled::internal_dataset_exists(&store, &encoded_dataset)? {
             store
                 .insert(encoded_dataset, vec![])
@@ -150,7 +164,7 @@ impl Ligature for LigatureSled {
         let store = self.store_lock.write().map_err(|_| {
             LigatureError("Error starting write transaction when deleting dataset.".to_string())
         })?;
-        let encoded_dataset = encode_dataset(dataset)?;
+        let encoded_dataset = encode_dataset(dataset);
         if LigatureSled::internal_dataset_exists(&store, &encoded_dataset)? {
             store.remove(&encoded_dataset);
             store.drop_tree(dataset.name());
@@ -163,7 +177,7 @@ impl Ligature for LigatureSled {
             .store_lock
             .read()
             .map_err(|_| LigatureError("Error starting query transaction.".to_string()))?;
-        let encoded_dataset = encode_dataset(dataset)?;
+        let encoded_dataset = encode_dataset(dataset);
         if LigatureSled::internal_dataset_exists(&store, &encoded_dataset)? {
             Ok(Box::new(LigatureSledQueryTx {
                 store: store
@@ -182,7 +196,7 @@ impl Ligature for LigatureSled {
             .store_lock
             .write()
             .map_err(|_| LigatureError("Error starting write transaction.".to_string()))?;
-        let encoded_dataset = encode_dataset(dataset)?;
+        let encoded_dataset = encode_dataset(dataset);
         if LigatureSled::internal_dataset_exists(&store, &encoded_dataset)? {
             Ok(Box::new(LigatureSledWriteTx {
                 store: store
