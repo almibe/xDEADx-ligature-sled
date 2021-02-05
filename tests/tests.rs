@@ -4,7 +4,7 @@
 
 #[cfg(test)]
 mod tests {
-    use ligature::{Arrow, Dataset, Ligature, LigatureError, Link, PersistedLink, Vertex};
+    use ligature::{Attribute, Dataset, Ligature, LigatureError, Statement, PersistedStatement, Value};
     use ligature_sled::LigatureSled;
 
     fn dataset(name: &str) -> Dataset {
@@ -88,9 +88,9 @@ mod tests {
             instance.match_datasets_range("be", "test3").collect();
         let res3: Vec<Result<Dataset, LigatureError>> =
             instance.match_datasets_range("snoo", "zz").collect();
-        assert_eq!(res1.len(), 2);
-        assert_eq!(res2.len(), 4);
-        assert_eq!(res3.len(), 5);
+        assert_eq!(res1.len(), 2); //TODO check instances not just counts
+        assert_eq!(res2.len(), 4); //TODO check instances not just counts
+        assert_eq!(res3.len(), 5); //TODO check instances not just counts
     }
 
     #[test]
@@ -111,28 +111,41 @@ mod tests {
         let test_dataset = dataset("test/test");
         instance.create_dataset(&test_dataset);
         let read_tx = instance.query(&test_dataset).unwrap();
-        let res: Vec<Result<PersistedLink, LigatureError>> = read_tx.all_links().collect();
+        let res: Vec<Result<PersistedStatement, LigatureError>> = read_tx.all_statements().collect();
         assert!(res.is_empty());
     }
 
     // #[test]
-    // fn add_a_basic_link() {
+    // fn create_new_entity() {
     //     let instance = instance();
     //     let test_dataset = dataset("test/test");
     //     instance.create_dataset(&test_dataset);
     //     let write_tx = instance.write(&test_dataset).unwrap();
-    //     let source = Vertex::BooleanLiteral(true);
-    //     let arrow = Arrow::new("equals").unwrap();
-    //     let target = Vertex::BooleanLiteral(true);
-    //     let link = Link {
+    //     let entity1 = write_tx.new_entity().unwrap();
+    //     let entity2 = write_tx.new_entity().unwrap();
+    //     assert_eq!(entity1.0, 1);
+    //     assert_eq!(entity2.0, 2);
+    //     assert!(entity1 != entity2);
+    // }
+
+    // #[test]
+    // fn add_a_basic_statement() {
+    //     let instance = instance();
+    //     let test_dataset = dataset("test/test");
+    //     instance.create_dataset(&test_dataset);
+    //     let write_tx = instance.write(&test_dataset).unwrap();
+    //     let source = Value::StringLiteral("Hello, Ligature");
+    //     let arrow = Attribute::new("language").unwrap();
+    //     let target = Value::StringLiteral("English");
+    //     let statement = Statement {
     //         source: source,
     //         arrow: arrow,
     //         target: target,
     //     };
-    //     write_tx.add_link(link);
+    //     write_tx.add_statement(&statement);
     //     write_tx.commit();
     //     let read_tx = instance.query(&test_dataset).unwrap();
-    //     let res: Vec<Result<PersistedLink, LigatureError>> = read_tx.all_links().collect();
+    //     let res: Vec<Result<PersistedStatement, LigatureError>> = read_tx.all_statements().collect();
     //     assert_eq!(res.len(), 1); //TODO check instance not just number
     // }
 
@@ -143,22 +156,22 @@ mod tests {
     //     instance.create_dataset(&test_dataset);
     //     let write_tx = instance.write(&test_dataset).unwrap();
     //     let n1 = write_tx.new_node();
-    //     let arrow = Arrow("arrow");
+    //     let arrow = Attribute("arrow");
     //     let n2 = write_tx.new_node();
-    //     let link = Link {
+    //     let statement = Statement {
     //         source: n1,
     //         arrow: arrow,
     //         target: n2,
     //     };
-    //     let persisted_link = write_tx.add_link(&link);
+    //     let persisted_statement = write_tx.add_statement(&statement);
     //     let nn3 = write_tx.new_node();
     //     let nn4 = write_tx.new_node();
-    //     let link2 = Link {
+    //     let statement2 = Statement {
     //         source: n3,
     //         arrow: arrow,
     //         target: n4,
     //     }
-    //     let persisted_link2 = write_tx.add_link(link2);
+    //     let persisted_statement2 = write_tx.add_statement(statement2);
     //     write_tx.commit();
     //     let read_tx = instance.query();
     //     let res = read_tx.allStatements(&test_dataset).toListL;

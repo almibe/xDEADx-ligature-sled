@@ -5,12 +5,16 @@
 //#![deny(missing_docs)]
 
 mod codec;
+mod query_tx;
+mod write_tx;
 
 use codec::{decode_dataset, encode_dataset, encode_dataset_match};
 use ligature::{
-    Arrow, Dataset, Ligature, LigatureError, Link, Node, PersistedLink, QueryResult, QueryTx,
-    Range, Vertex, WriteTx,
+    Attribute, Dataset, Ligature, LigatureError, Statement, PersistedStatement, QueryTx,
+    Range, WriteTx,
 };
+use query_tx::LigatureSledQueryTx;
+use write_tx::LigatureSledWriteTx;
 use std::sync::RwLock;
 
 pub struct LigatureSled {
@@ -110,7 +114,7 @@ impl Ligature for LigatureSled {
                     Err(e) => Err(LigatureError(
                         "Error presfix matching Datasets.".to_string(),
                     )),
-                }))                    
+                }))
             }
             Err(e) => Box::new(std::iter::once(Err(e))),
         }
@@ -166,8 +170,12 @@ impl Ligature for LigatureSled {
         })?;
         let encoded_dataset = encode_dataset(dataset);
         if LigatureSled::internal_dataset_exists(&store, &encoded_dataset)? {
-            store.remove(&encoded_dataset);
-            store.drop_tree(dataset.name());
+            store.remove(&encoded_dataset).map_err(|_| {
+                LigatureError("Error removing dataset.".to_string())
+            })?;
+            store.drop_tree(dataset.name()).map_err(|_| {
+                LigatureError("Error dropping dataset tree.".to_string())
+            })?;
         }
         Ok(())
     }
@@ -179,11 +187,10 @@ impl Ligature for LigatureSled {
             .map_err(|_| LigatureError("Error starting query transaction.".to_string()))?;
         let encoded_dataset = encode_dataset(dataset);
         if LigatureSled::internal_dataset_exists(&store, &encoded_dataset)? {
-            Ok(Box::new(LigatureSledQueryTx {
-                store: store
-                    .open_tree(dataset.name())
-                    .map_err(|_| LigatureError("Error starting query transaction.".to_string()))?,
-            }))
+            let tree = store
+                .open_tree(dataset.name())
+                .map_err(|_| LigatureError("Error starting query transaction.".to_string()))?;
+            Ok(Box::new(LigatureSledQueryTx::new(tree)))
         } else {
             Err(LigatureError(
                 "Error starting query transaction.".to_string(),
@@ -198,77 +205,14 @@ impl Ligature for LigatureSled {
             .map_err(|_| LigatureError("Error starting write transaction.".to_string()))?;
         let encoded_dataset = encode_dataset(dataset);
         if LigatureSled::internal_dataset_exists(&store, &encoded_dataset)? {
-            Ok(Box::new(LigatureSledWriteTx {
-                store: store
-                    .open_tree(dataset.name())
-                    .map_err(|_| LigatureError("Error starting query transaction.".to_string()))?,
-            }))
+            let tree = store
+                .open_tree(dataset.name())
+                .map_err(|_| LigatureError("Error starting query transaction.".to_string()))?;
+            Ok(Box::new(LigatureSledWriteTx::new(tree)))
         } else {
             Err(LigatureError(
                 "Error starting write transaction.".to_string(),
             ))
         }
-    }
-}
-
-struct LigatureSledQueryTx {
-    store: sled::Tree,
-}
-
-impl QueryTx for LigatureSledQueryTx {
-    fn all_links(&self) -> Box<dyn Iterator<Item = Result<PersistedLink, LigatureError>>> {
-        Box::new(std::iter::empty())
-    }
-
-    fn match_links(
-        &self,
-        source: Option<Vertex>,
-        arrow: Option<Arrow>,
-        target: Option<Vertex>,
-    ) -> Box<dyn Iterator<Item = Result<PersistedLink, LigatureError>>> {
-        todo!()
-    }
-
-    fn match_links_range(
-        &self,
-        source: Option<Vertex>,
-        arrow: Option<Arrow>,
-        target: Range,
-    ) -> Box<dyn Iterator<Item = Result<PersistedLink, LigatureError>>> {
-        todo!()
-    }
-
-    fn link_for_context(&self, context: &Node) -> Result<Option<PersistedLink>, LigatureError> {
-        todo!()
-    }
-
-    fn wander_query(&self, query: &str) -> Result<QueryResult, LigatureError> {
-        todo!()
-    }
-}
-
-struct LigatureSledWriteTx {
-    store: sled::Tree,
-}
-
-impl WriteTx for LigatureSledWriteTx {
-    fn new_node(&self) -> Result<Node, LigatureError> {
-        todo!()
-    }
-
-    fn add_link(&self, link: &Link) -> Result<PersistedLink, LigatureError> {
-        todo!()
-    }
-
-    fn remove_link(&self, persisted_link: &PersistedLink) -> Result<(), LigatureError> {
-        todo!()
-    }
-
-    fn cancel(&self) -> Result<(), LigatureError> {
-        todo!()
-    }
-
-    fn commit(&self) -> Result<(), LigatureError> {
-        todo!()
     }
 }
