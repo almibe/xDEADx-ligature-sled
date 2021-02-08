@@ -4,7 +4,9 @@
 
 #[cfg(test)]
 mod tests {
-    use ligature::{Attribute, Dataset, Ligature, LigatureError, Statement, PersistedStatement, Value};
+    use ligature::{
+        Attribute, Dataset, Ligature, LigatureError, PersistedStatement, Statement, Value,
+    };
     use ligature_sled::LigatureSled;
 
     fn dataset(name: &str) -> Dataset {
@@ -33,26 +35,27 @@ mod tests {
     }
 
     #[test]
-    fn check_if_datasets_exist() {
+    fn check_if_datasets_exist() -> Result<(), LigatureError> {
         let test_dataset = dataset("test/test");
         let test_dataset2 = dataset("test/test2");
         let instance = instance();
         instance.create_dataset(&test_dataset);
-        let res1 = instance.dataset_exists(&test_dataset).unwrap();
-        let res2 = instance.dataset_exists(&test_dataset2).unwrap();
+        let res1 = instance.dataset_exists(&test_dataset)?;
+        let res2 = instance.dataset_exists(&test_dataset2)?;
         assert!(res1);
         assert!(!res2);
+        Ok(())
     }
 
     #[test]
-    fn match_datasets_prefix() {
+    fn match_datasets_prefix() -> Result<(), LigatureError> {
         let test_dataset = dataset("test/test");
         let test_dataset2 = dataset("test/test2");
         let test_dataset3 = dataset("test3/test");
         let instance = instance();
-        instance.create_dataset(&test_dataset);
-        instance.create_dataset(&test_dataset2);
-        instance.create_dataset(&test_dataset3);
+        instance.create_dataset(&test_dataset)?;
+        instance.create_dataset(&test_dataset2)?;
+        instance.create_dataset(&test_dataset3)?;
         let res1: Vec<Result<Dataset, LigatureError>> =
             instance.match_datasets_prefix("test").collect();
         let res2: Vec<Result<Dataset, LigatureError>> =
@@ -62,10 +65,11 @@ mod tests {
         assert_eq!(res1.len(), 3);
         assert_eq!(res2.len(), 2);
         assert_eq!(res3.len(), 0);
+        Ok(())
     }
 
     #[test]
-    fn match_datasets_range() {
+    fn match_datasets_range() -> Result<(), LigatureError> {
         let datasets = vec![
             dataset("a"),
             dataset("app"),
@@ -91,70 +95,78 @@ mod tests {
         assert_eq!(res1.len(), 2); //TODO check instances not just counts
         assert_eq!(res2.len(), 4); //TODO check instances not just counts
         assert_eq!(res3.len(), 5); //TODO check instances not just counts
+        Ok(())
     }
 
     #[test]
-    fn create_and_delete_new_dataset() {
+    fn create_and_delete_new_dataset() -> Result<(), LigatureError> {
         let instance = instance();
         let test_dataset = dataset("test/test");
         let test_dataset2 = dataset("test/test2");
-        instance.create_dataset(&test_dataset);
-        instance.delete_dataset(&test_dataset);
-        instance.delete_dataset(&test_dataset2);
+        instance.create_dataset(&test_dataset)?;
+        instance.delete_dataset(&test_dataset)?;
+        instance.delete_dataset(&test_dataset2)?;
         let res: Vec<Result<Dataset, LigatureError>> = instance.all_datasets().collect();
         assert!(res.is_empty());
+        Ok(())
     }
 
     #[test]
-    fn new_datasets_should_be_empty() {
+    fn new_datasets_should_be_empty() -> Result<(), LigatureError> {
         let instance = instance();
         let test_dataset = dataset("test/test");
-        instance.create_dataset(&test_dataset);
-        let read_tx = instance.query(&test_dataset).unwrap();
-        let res: Vec<Result<PersistedStatement, LigatureError>> = read_tx.all_statements().collect();
+        instance.create_dataset(&test_dataset)?;
+        let read_tx = instance.query(&test_dataset)?;
+        let res: Vec<Result<PersistedStatement, LigatureError>> =
+            read_tx.all_statements().collect();
         assert!(res.is_empty());
+        Ok(())
     }
 
-    // #[test]
-    // fn create_new_entity() {
-    //     let instance = instance();
-    //     let test_dataset = dataset("test/test");
-    //     instance.create_dataset(&test_dataset);
-    //     let write_tx = instance.write(&test_dataset).unwrap();
-    //     let entity1 = write_tx.new_entity().unwrap();
-    //     let entity2 = write_tx.new_entity().unwrap();
-    //     assert_eq!(entity1.0, 1);
-    //     assert_eq!(entity2.0, 2);
-    //     assert!(entity1 != entity2);
-    // }
+    #[test]
+    fn create_new_entity() -> Result<(), LigatureError> {
+        let instance = instance();
+        let test_dataset = dataset("test/test");
+        instance.create_dataset(&test_dataset)?;
+        let write_tx = instance.write(&test_dataset)?;
+        let entity1 = write_tx.new_entity()?;
+        let entity2 = write_tx.new_entity()?;
+        assert_eq!(entity1.0, 1);
+        assert_eq!(entity2.0, 2);
+        assert!(entity1 != entity2);
+        Ok(())
+    }
 
-    // #[test]
-    // fn add_a_basic_statement() {
-    //     let instance = instance();
-    //     let test_dataset = dataset("test/test");
-    //     instance.create_dataset(&test_dataset);
-    //     let write_tx = instance.write(&test_dataset).unwrap();
-    //     let source = Value::StringLiteral("Hello, Ligature");
-    //     let arrow = Attribute::new("language").unwrap();
-    //     let target = Value::StringLiteral("English");
-    //     let statement = Statement {
-    //         source: source,
-    //         arrow: arrow,
-    //         target: target,
-    //     };
-    //     write_tx.add_statement(&statement);
-    //     write_tx.commit();
-    //     let read_tx = instance.query(&test_dataset).unwrap();
-    //     let res: Vec<Result<PersistedStatement, LigatureError>> = read_tx.all_statements().collect();
-    //     assert_eq!(res.len(), 1); //TODO check instance not just number
-    // }
+    #[test]
+    fn add_a_basic_statement() -> Result<(), LigatureError> {
+        let instance = instance();
+        let test_dataset = dataset("test/test");
+        instance.create_dataset(&test_dataset)?;
+        let write_tx = instance.write(&test_dataset)?;
+        let entity = write_tx.new_entity()?;
+        let attribute = Attribute::new("name")?;
+        let value = Value::StringLiteral("Juniper".to_string());
+        let statement = Statement {
+            entity: entity,
+            attribute: attribute,
+            value: value,
+        };
+        write_tx.add_statement(&statement)?;
+        write_tx.commit()?;
+        let read_tx = instance.query(&test_dataset)?;
+        let res: Vec<Result<PersistedStatement, LigatureError>> =
+            read_tx.all_statements().collect();
+        assert_eq!(res.len(), 1); //TODO check instance not just number
+                                  //TODO check context on persisted statements
+        Ok(())
+    }
 
     // #[test]
     // fn new_node() {
     //     let instance = instance();
     //     let test_dataset = dataset("test/test");
     //     instance.create_dataset(&test_dataset);
-    //     let write_tx = instance.write(&test_dataset).unwrap();
+    //     let write_tx = instance.write(&test_dataset)?;
     //     let n1 = write_tx.new_node();
     //     let arrow = Attribute("arrow");
     //     let n2 = write_tx.new_node();
