@@ -8,23 +8,25 @@ Each dataset then has its own tree where the records for a given dataset are sto
 ligature-sled uses a set of `u8` prefixes before any entry into the database.
 Below is a list of what is currently being used.
 
-| Prefix | Description          | Stored In    | Key       | Value  |
-| ------ | -------------------- | ------------ | --------- | ------ |
-| 0      | Dataset Name         | Root tree    | u8 string | _      |
-| 1      | Dataset Counter      | Dataset tree | u8        | u64    |
-| 2      | Attribute Name to ID | Dataset tree | u8 string | u64    |
-| 3      | Attribute ID to Name | Dataset tree | u8 u64    | string |
-| 4      | EAVC                 | Dataset tree | see note  | _      |
-| 5      | EVAC                 | Dataset tree | see note  | _      |
-| 6      | AEVC                 | Dataset tree | see note  | _      |
-| 7      | AVEC                 | Dataset tree | see note  | _      |
-| 8      | VEAC                 | Dataset tree | see note  | _      |
-| 9      | VAEC                 | Dataset tree | see note  | _      |
-| 10     | CEAV                 | Dataset tree | see note  | _      |
-| 11     | String Literal to ID | Dataset tree | u8 string | u64    |
-| 12     | ID to String Literal | Dataset tree | u8 u64    | string |
+| Prefix | Description            | Stored In    | Key       | Value  |
+| ------ | ---------------------- | ------------ | --------- | ------ |
+| 0      | Dataset Name           | Root tree    | u8 string | _      |
+| 1      | Entity Counter         | Dataset tree | u8        | u64    |
+| 2      | Attribute Counter      | Dataset tree | u8        | u64    |
+| 3      | Attribute Name to ID   | Dataset tree | u8 string | u64    |
+| 4      | Attribute ID to Name   | Dataset tree | u8 u64    | string |
+| 5      | EAVC                   | Dataset tree | see note  | _      |
+| 6      | EVAC                   | Dataset tree | see note  | _      |
+| 7      | AEVC                   | Dataset tree | see note  | _      |
+| 8      | AVEC                   | Dataset tree | see note  | _      |
+| 9      | VEAC                   | Dataset tree | see note  | _      |
+| 10     | VAEC                   | Dataset tree | see note  | _      |
+| 11     | CEAV                   | Dataset tree | see note  | _      |
+| 12     | String Literal Counter | Dataset tree | u8        | u64    | 
+| 13     | String Literal to ID   | Dataset tree | u8 string | u64    |
+| 14     | ID to String Literal   | Dataset tree | u8 u64    | string |
 
-Vertices also have prefixes to say what kind of vertex they are.
+Values also have prefixes to say what kind of Value they are.
 
 | Prefix | Type   |
 | ------ | ------ |

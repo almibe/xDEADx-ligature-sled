@@ -6,8 +6,8 @@
 
 use super::codec::{decode_dataset, encode_dataset, encode_dataset_match};
 use ligature::{
-    Attribute, Dataset, Ligature, LigatureError, Statement, PersistedStatement, QueryTx,
-    Range, WriteTx, Entity, Value,
+    Attribute, Dataset, Entity, Ligature, LigatureError, PersistedStatement, QueryTx, Range,
+    Statement, Value, WriteTx,
 };
 
 pub struct LigatureSledQueryTx {
@@ -16,14 +16,14 @@ pub struct LigatureSledQueryTx {
 
 impl LigatureSledQueryTx {
     pub fn new(store: sled::Tree) -> Self {
-        Self {
-            store: store,
-        }
+        Self { store: store }
     }
 }
 
 impl QueryTx for LigatureSledQueryTx {
-    fn all_statements(&self) -> Box<dyn Iterator<Item = Result<PersistedStatement, LigatureError>>> {
+    fn all_statements(
+        &self,
+    ) -> Box<dyn Iterator<Item = Result<PersistedStatement, LigatureError>>> {
         Box::new(std::iter::empty())
     }
 
@@ -45,7 +45,10 @@ impl QueryTx for LigatureSledQueryTx {
         todo!()
     }
 
-    fn statement_for_context(&self, context: &Entity) -> Result<Option<PersistedStatement>, LigatureError> {
+    fn statement_for_context(
+        &self,
+        context: &Entity,
+    ) -> Result<Option<PersistedStatement>, LigatureError> {
         todo!()
     }
 }

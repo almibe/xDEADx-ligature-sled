@@ -3,12 +3,12 @@
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
 use ligature::{
-    Attribute, Dataset, Ligature, LigatureError, Statement, Entity, PersistedStatement, QueryTx,
-    WriteTx, Value,
+    Attribute, Dataset, Entity, Ligature, LigatureError, PersistedStatement, QueryTx, Statement,
+    Value, WriteTx,
 };
 
 pub const DATASET_PREFIX: u8 = 0;
-pub const DATASET_COUNTER: u8 = 0;
+pub const ENTITY_COUNTER_PREFIX: u8 = 1;
 
 pub fn encode_dataset(dataset: &Dataset) -> Vec<u8> {
     let encoded_dataset = dataset.name().as_bytes();
@@ -30,6 +30,24 @@ pub fn decode_dataset(dataset: Vec<u8>) -> Result<Dataset, LigatureError> {
     let name = std::str::from_utf8(&dataset_clone)
         .map_err(|_| LigatureError("Error checking for Dataset".to_string()))?;
     Dataset::new(name)
+}
+
+pub fn encode_counter(counter: u64) -> Vec<u8> {
+    counter.to_be_bytes().to_vec()
+}
+
+pub fn decode_counter(counter: Vec<u8>) -> Result<u64, LigatureError> {
+    if (counter.len() == 8) {
+        Ok(u64::from_be_bytes([
+            counter[0], counter[1], counter[2], counter[3], counter[4], counter[5], counter[6],
+            counter[7],
+        ]))
+    } else {
+        Err(LigatureError(format!(
+            "Could not convert {:?} to u64",
+            counter
+        )))
+    }
 }
 
 pub fn encode_value(value: &Value) -> Vec<u8> {

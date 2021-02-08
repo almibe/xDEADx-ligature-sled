@@ -8,14 +8,14 @@ mod codec;
 mod query_tx;
 mod write_tx;
 
-use codec::{decode_dataset, encode_dataset, encode_dataset_match};
+use codec::{decode_dataset, encode_dataset, encode_dataset_match, ENTITY_COUNTER_PREFIX};
 use ligature::{
-    Attribute, Dataset, Ligature, LigatureError, Statement, PersistedStatement, QueryTx,
-    Range, WriteTx,
+    Attribute, Dataset, Ligature, LigatureError, PersistedStatement, QueryTx, Range, Statement,
+    WriteTx,
 };
 use query_tx::LigatureSledQueryTx;
-use write_tx::LigatureSledWriteTx;
 use std::sync::RwLock;
+use write_tx::LigatureSledWriteTx;
 
 pub struct LigatureSled {
     //TODO eventually I won't need this but for now to support ReadTx range searches I need this lock
@@ -157,8 +157,12 @@ impl Ligature for LigatureSled {
             store
                 .insert(encoded_dataset, vec![])
                 .map_err(|_| LigatureError("Error starting inserting dataset.".to_string()))?;
-            store
+            let dataset_tree = store
                 .open_tree(dataset.name())
+                .map_err(|_| LigatureError("Error starting inserting dataset.".to_string()))?;
+            let counter_start: u64 = 0;
+            dataset_tree
+                .insert(vec![ENTITY_COUNTER_PREFIX], counter_start.to_be_bytes().to_vec())
                 .map_err(|_| LigatureError("Error starting inserting dataset.".to_string()))?;
         }
         Ok(())
@@ -170,12 +174,12 @@ impl Ligature for LigatureSled {
         })?;
         let encoded_dataset = encode_dataset(dataset);
         if LigatureSled::internal_dataset_exists(&store, &encoded_dataset)? {
-            store.remove(&encoded_dataset).map_err(|_| {
-                LigatureError("Error removing dataset.".to_string())
-            })?;
-            store.drop_tree(dataset.name()).map_err(|_| {
-                LigatureError("Error dropping dataset tree.".to_string())
-            })?;
+            store
+                .remove(&encoded_dataset)
+                .map_err(|_| LigatureError("Error removing dataset.".to_string()))?;
+            store
+                .drop_tree(dataset.name())
+                .map_err(|_| LigatureError("Error dropping dataset tree.".to_string()))?;
         }
         Ok(())
     }
