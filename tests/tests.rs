@@ -86,7 +86,7 @@ mod tests {
         let instance = instance();
         for dataset in datasets {
             instance.create_dataset(&dataset)?;
-        };
+        }
         let res1: Vec<Result<Dataset, LigatureError>> =
             instance.match_datasets_range("a", "b").collect();
         let res2: Vec<Result<Dataset, LigatureError>> =

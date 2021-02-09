@@ -8,7 +8,7 @@ mod codec;
 mod query_tx;
 mod write_tx;
 
-use codec::{decode_dataset, encode_dataset, encode_dataset_match, ENTITY_COUNTER_PREFIX};
+use codec::{decode_dataset, encode_dataset, encode_dataset_match, ENTITY_ID_PREFIX};
 use ligature::{
     Attribute, Dataset, Ligature, LigatureError, PersistedStatement, QueryTx, Range, Statement,
     WriteTx,
@@ -162,7 +162,7 @@ impl Ligature for LigatureSled {
                 .map_err(|_| LigatureError("Error starting inserting dataset.".to_string()))?;
             let id_start: u64 = 0;
             dataset_tree
-                .insert(vec![ENTITY_COUNTER_PREFIX], id_start.to_be_bytes().to_vec())
+                .insert(vec![ENTITY_ID_PREFIX], id_start.to_be_bytes().to_vec())
                 .map_err(|_| LigatureError("Error starting inserting dataset.".to_string()))?;
         }
         Ok(())
