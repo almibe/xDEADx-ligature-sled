@@ -12,6 +12,11 @@ pub const ENTITY_ID_PREFIX: u8 = 1;
 pub const ATTRIBUTE_ID_PREFIX: u8 = 2;
 pub const ATTRIBUTE_NAME_TO_ID_PREFIX: u8 = 3;
 
+pub const ENTITY_VALUE_PREFIX: u8 = 0;
+pub const STRING_VALUE_PREFIX: u8 = 1;
+pub const INTEGER_VALUE_PREFIX: u8 = 2;
+pub const FLOAT_VALUE_PREFIX: u8 = 3;
+
 /// Takes a Dataset and encodes it with the DATASET_PREFIX.
 pub fn encode_dataset(dataset: &Dataset) -> Vec<u8> {
     let encoded_dataset = dataset.name().as_bytes();
@@ -103,11 +108,19 @@ pub fn encode_float(float: &f64) -> Vec<u8> {
 // }
 
 /// Enocdes an Attribute with the Attribute's name and the ATTRIBUTE_NAME_TO_ID_PREFIX.
-pub fn encode_attribute(attribute: &Attribute) -> Vec<u8> {
+pub fn encode_attribute_name_to_id_key(attribute: &Attribute) -> Vec<u8> {
     let encoded_attribute = attribute.name().as_bytes();
     let mut res = vec![ATTRIBUTE_NAME_TO_ID_PREFIX];
     res.extend(encoded_attribute);
     res
+}
+
+pub fn encode_attribute_id_to_name_key(attribute_id: u64) -> Vec<u8> {
+    todo!()
+}
+
+pub fn encode_attribute_name_value(attribute: &Attribute) -> Vec<u8> {
+    todo!()
 }
 
 // pub fn decode_attribute(attribute: Vec<u8>) -> Attribute {

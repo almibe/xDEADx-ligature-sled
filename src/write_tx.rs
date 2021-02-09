@@ -3,8 +3,8 @@
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
 use super::codec::{
-    decode_dataset, decode_id, encode_attribute, encode_dataset, encode_dataset_match, encode_id,
-    ENTITY_ID_PREFIX,
+    decode_dataset, decode_id, encode_attribute_name_to_id_key, encode_attribute_id_to_name_key, encode_attribute_name_value, encode_dataset, encode_dataset_match, encode_id,
+    ENTITY_ID_PREFIX, ATTRIBUTE_ID_PREFIX,
 };
 use ligature::{
     Attribute, Dataset, Entity, Ligature, LigatureError, PersistedStatement, QueryTx, Range,
@@ -48,7 +48,7 @@ impl LigatureSledWriteTx {
     /// Checks if an Attribute exists and returns it's id if it does.
     /// Otherwise it creates a new Attribute and returns the new id.
     fn check_or_create_attribute(&self, attribute: &Attribute) -> Result<u64, LigatureError> {
-        let encoded_attribute = encode_attribute(attribute);
+        let encoded_attribute = encode_attribute_name_to_id_key(attribute);
         let attribute_opt = self
             .store
             .get(encoded_attribute)
@@ -61,11 +61,17 @@ impl LigatureSledWriteTx {
 
     /// Creates an Attribute that doesn't exist (doesn't check whether it does or not!) and returns the Attribute's id.
     fn create_attribute(&self, attribute: &Attribute) -> Result<u64, LigatureError> {
-        //TODO read attribute id
-        //TODO increment and store id
-        //TODO store attribute name to id
-        //TODO store attribute id to name
-        todo!()
+        let next_attribute_id = self.read_id(ATTRIBUTE_ID_PREFIX)? + 1;
+        self.store
+            .insert(vec![ATTRIBUTE_ID_PREFIX], encode_id(next_attribute_id))
+            .map_err(|_| LigatureError("Could not increment Attribute Counter".to_string()))?;
+        self.store
+            .insert(encode_attribute_name_to_id_key(attribute), encode_id(next_attribute_id))
+            .map_err(|_| LigatureError(format!("Error saving attribute {:?}", attribute)));
+        self.store
+            .insert(encode_attribute_id_to_name_key(next_attribute_id), encode_attribute_name_value(attribute))
+            .map_err(|_| LigatureError(format!("Error saving attribute {:?}", attribute)));
+        Ok(next_attribute_id)
     }
 
     /// Checks if a value exists and if it does returns the Value's type prefix and the Value's id.
@@ -75,20 +81,24 @@ impl LigatureSledWriteTx {
             Value::Entity(entity) => {
                 //TODO see handle entity above
                 todo!()
-            }
-            Value::StringLiteral(value) => {
-                //TODO handle String literals similarly to Entities and Attributes
-                todo!()
-            }
+            },
+            Value::StringLiteral(value) => self.check_or_create_string_literal(value),
             Value::IntegerLiteral(value) => {
                 //TODO encode long and use
                 todo!()
-            }
+            },
             Value::FloatLiteral(value) => {
                 //TODO encode float and use
                 todo!()
-            }
+            },
         }
+    }
+
+    fn check_or_create_string_literal(&self, string_literal: &String) -> Result<(u8, u64), LigatureError> {
+        //TODO check if string exists
+        //TODO if so return string id
+        //TODO if not add string
+        todo!()
     }
 }
 

@@ -28,12 +28,12 @@ Below is a list of what is currently being used.
 
 Values also have prefixes to say what kind of Value they are.
 
-| Prefix | Type   |
-| ------ | ------ |
-| 0      | Entity |
-| 1      | String |
-| 2      | Long   |
-| 3      | Float  |
+| Prefix | Type    |
+| ------ | ------- |
+| 0      | Entity  |
+| 1      | String  |
+| 2      | Integer |
+| 3      | Float   |
 
 NOTE:
 
