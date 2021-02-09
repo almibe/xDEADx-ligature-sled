@@ -160,9 +160,9 @@ impl Ligature for LigatureSled {
             let dataset_tree = store
                 .open_tree(dataset.name())
                 .map_err(|_| LigatureError("Error starting inserting dataset.".to_string()))?;
-            let counter_start: u64 = 0;
+            let id_start: u64 = 0;
             dataset_tree
-                .insert(vec![ENTITY_COUNTER_PREFIX], counter_start.to_be_bytes().to_vec())
+                .insert(vec![ENTITY_COUNTER_PREFIX], id_start.to_be_bytes().to_vec())
                 .map_err(|_| LigatureError("Error starting inserting dataset.".to_string()))?;
         }
         Ok(())

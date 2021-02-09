@@ -25,13 +25,14 @@ mod tests {
     }
 
     #[test]
-    fn creating_a_new_dataset() {
+    fn creating_a_new_dataset() -> Result<(), LigatureError> {
         let test_dataset = dataset("test/test");
         let instance = instance();
-        instance.create_dataset(&test_dataset);
+        instance.create_dataset(&test_dataset)?;
         let res: Vec<Result<Dataset, LigatureError>> = instance.all_datasets().collect();
         let expected: Vec<Result<Dataset, LigatureError>> = vec![Ok(test_dataset)];
         assert_eq!(res, expected);
+        Ok(())
     }
 
     #[test]
@@ -39,7 +40,7 @@ mod tests {
         let test_dataset = dataset("test/test");
         let test_dataset2 = dataset("test/test2");
         let instance = instance();
-        instance.create_dataset(&test_dataset);
+        instance.create_dataset(&test_dataset)?;
         let res1 = instance.dataset_exists(&test_dataset)?;
         let res2 = instance.dataset_exists(&test_dataset2)?;
         assert!(res1);
@@ -83,9 +84,9 @@ mod tests {
             dataset("z"),
         ];
         let instance = instance();
-        datasets.iter().for_each(|dataset| {
-            instance.create_dataset(&dataset);
-        });
+        for dataset in datasets {
+            instance.create_dataset(&dataset)?;
+        };
         let res1: Vec<Result<Dataset, LigatureError>> =
             instance.match_datasets_range("a", "b").collect();
         let res2: Vec<Result<Dataset, LigatureError>> =
@@ -263,7 +264,7 @@ mod tests {
     //       valjean = tx.newNode(test_dataset)
     //       javert = tx.newNode(test_dataset)
     //       tx.addStatement(test_dataset, Statement(valjean, Predicate("nationality"), StringLiteral("French")))
-    //       tx.addStatement(test_dataset, Statement(valjean, Predicate("prisonNumber"), LongLiteral(24601)))
+    //       tx.addStatement(test_dataset, Statement(valjean, Predicate("prisonNumber"), IntegerLiteral(24601)))
     //       tx.addStatement(test_dataset, Statement(javert, Predicate("nationality"), StringLiteral("French")))
     //     }
     //     instance.read.use { tx =>
@@ -272,14 +273,14 @@ mod tests {
     //                   Statement(valjean, Predicate("nationality"), StringLiteral("French")),
     //                   Statement(javert, Predicate("nationality"), StringLiteral("French"))
     //       )
-    //       tx.matchStatements(test_dataset, null, null, LongLiteral(24601))
+    //       tx.matchStatements(test_dataset, null, null, IntegerLiteral(24601))
     //               .toSet() shouldBe setOf(
-    //                   Statement(valjean, Predicate("prisonNumber"), LongLiteral(24601))
+    //                   Statement(valjean, Predicate("prisonNumber"), IntegerLiteral(24601))
     //       )
     //       tx.matchStatements(test_dataset, valjean)
     //               .toSet() shouldBe setOf(
     //                   Statement(valjean, Predicate("nationality"), StringLiteral("French")),
-    //                   Statement(valjean, Predicate("prisonNumber"), LongLiteral(24601))
+    //                   Statement(valjean, Predicate("prisonNumber"), IntegerLiteral(24601))
     //       )
     //       tx.matchStatements(test_dataset, javert, Predicate("nationality"), StringLiteral("French"))
     //               .toSet() shouldBe setOf(
@@ -288,7 +289,7 @@ mod tests {
     //       tx.matchStatements(test_dataset, null, null, null)
     //               .toSet() shouldBe setOf(
     //                   Statement(valjean, Predicate("nationality"), StringLiteral("French")),
-    //                   Statement(valjean, Predicate("prisonNumber"), LongLiteral(24601)),
+    //                   Statement(valjean, Predicate("prisonNumber"), IntegerLiteral(24601)),
     //                   Statement(javert, Predicate("nationality"), StringLiteral("French"))
     //       )
     //     }
@@ -307,11 +308,11 @@ mod tests {
     //       javert = tx.newNode(test_dataset)
     //       trout = tx.newNode(test_dataset)
     //       tx.addStatement(test_dataset, Statement(valjean, Predicate("nationality"), StringLiteral("French")))
-    //       tx.addStatement(test_dataset, Statement(valjean, Predicate("prisonNumber"), LongLiteral(24601)))
+    //       tx.addStatement(test_dataset, Statement(valjean, Predicate("prisonNumber"), IntegerLiteral(24601)))
     //       tx.addStatement(test_dataset, Statement(javert, Predicate("nationality"), StringLiteral("French")))
-    //       tx.addStatement(test_dataset, Statement(javert, Predicate("prisonNumber"), LongLiteral(24602)))
+    //       tx.addStatement(test_dataset, Statement(javert, Predicate("prisonNumber"), IntegerLiteral(24602)))
     //       tx.addStatement(test_dataset, Statement(trout, Predicate("nationality"), StringLiteral("American")))
-    //       tx.addStatement(test_dataset, Statement(trout, Predicate("prisonNumber"), LongLiteral(24603)))
+    //       tx.addStatement(test_dataset, Statement(trout, Predicate("prisonNumber"), IntegerLiteral(24603)))
     //     }
     //     instance.read.use { tx =>
     //       tx.matchStatements(test_dataset, null, null, StringLiteralRange("French", "German"))
@@ -319,14 +320,14 @@ mod tests {
     //                   Statement(valjean, Predicate("nationality"), StringLiteral("French")),
     //                   Statement(javert, Predicate("nationality"), StringLiteral("French"))
     //       )
-    //       tx.matchStatements(test_dataset, null, null, LongLiteralRange(24601, 24603))
+    //       tx.matchStatements(test_dataset, null, null, IntegerLiteralRange(24601, 24603))
     //               .toSet() shouldBe setOf(
-    //                   Statement(valjean, Predicate("prisonNumber"), LongLiteral(24601)),
-    //                   Statement(javert, Predicate("prisonNumber"), LongLiteral(24602))
+    //                   Statement(valjean, Predicate("prisonNumber"), IntegerLiteral(24601)),
+    //                   Statement(javert, Predicate("prisonNumber"), IntegerLiteral(24602))
     //       )
-    //       tx.matchStatements(test_dataset, valjean, null, LongLiteralRange(24601, 24603))
+    //       tx.matchStatements(test_dataset, valjean, null, IntegerLiteralRange(24601, 24603))
     //               .toSet() shouldBe setOf(
-    //                   Statement(valjean, Predicate("prisonNumber"), LongLiteral(24601))
+    //                   Statement(valjean, Predicate("prisonNumber"), IntegerLiteral(24601))
     //       )
     //     }
     //   }

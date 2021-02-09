@@ -9,7 +9,10 @@ use ligature::{
 
 pub const DATASET_PREFIX: u8 = 0;
 pub const ENTITY_COUNTER_PREFIX: u8 = 1;
+pub const ATTRIBUTE_COUNTER_PREFIX: u8 = 2;
+pub const ATTRIBUTE_NAME_TO_ID_PREFIX: u8 = 3;
 
+/// Takes a Dataset and encodes it with the DATASET_PREFIX.
 pub fn encode_dataset(dataset: &Dataset) -> Vec<u8> {
     let encoded_dataset = dataset.name().as_bytes();
     let mut res = vec![DATASET_PREFIX];
@@ -17,6 +20,8 @@ pub fn encode_dataset(dataset: &Dataset) -> Vec<u8> {
     res
 }
 
+/// Encodes a str prefix used to match Dataset names w/ the DATASET_PREFIX.
+/// This is needed since a Dataset prefix might not be a valid Dataset name.
 pub fn encode_dataset_match(dataset_match: &str) -> Vec<u8> {
     let encoded_dataset = dataset_match.as_bytes();
     let mut res = vec![DATASET_PREFIX];
@@ -24,6 +29,8 @@ pub fn encode_dataset_match(dataset_match: &str) -> Vec<u8> {
     res
 }
 
+/// Decodes a Dataset's name (ignoring the DATASET_PREFIX) and returns a Dataset.
+/// TODO maybe this should return an error if the prefix isn't a DATASET_PREFIX.
 pub fn decode_dataset(dataset: Vec<u8>) -> Result<Dataset, LigatureError> {
     let mut dataset_clone = dataset;
     dataset_clone.remove(0);
@@ -32,29 +39,33 @@ pub fn decode_dataset(dataset: Vec<u8>) -> Result<Dataset, LigatureError> {
     Dataset::new(name)
 }
 
-pub fn encode_counter(counter: u64) -> Vec<u8> {
-    counter.to_be_bytes().to_vec()
+/// Encodes the value stored for an id.
+pub fn encode_id(id: u64) -> Vec<u8> {
+    id.to_be_bytes().to_vec()
 }
 
-pub fn decode_counter(counter: Vec<u8>) -> Result<u64, LigatureError> {
-    if (counter.len() == 8) {
+/// Decodes the value stored for an id.
+pub fn decode_id(id: Vec<u8>) -> Result<u64, LigatureError> {
+    if (id.len() == 8) {
         Ok(u64::from_be_bytes([
-            counter[0], counter[1], counter[2], counter[3], counter[4], counter[5], counter[6],
-            counter[7],
+            id[0], id[1], id[2], id[3], id[4], id[5], id[6],
+            id[7],
         ]))
     } else {
         Err(LigatureError(format!(
             "Could not convert {:?} to u64",
-            counter
+            id
         )))
     }
 }
 
+/// Encodes a value with the fitting prefix.
+/// This function just delegates to the specific impl.
 pub fn encode_value(value: &Value) -> Vec<u8> {
     match value {
         Value::Entity(entity) => encode_entity(entity),
         Value::StringLiteral(value) => encode_string(value),
-        Value::LongLiteral(value) => encode_long(value),
+        Value::IntegerLiteral(value) => encode_long(value),
         Value::FloatLiteral(value) => encode_float(value),
     }
 }
@@ -95,9 +106,13 @@ pub fn encode_float(float: &f64) -> Vec<u8> {
 //     todo!()
 // }
 
-// pub fn encode_attribute(attribute: &Attribute) -> Vec<u8> {
-//     todo!()
-// }
+/// Enocdes an Attribute with the Attribute's name and the ATTRIBUTE_NAME_TO_ID_PREFIX.
+pub fn encode_attribute(attribute: &Attribute) -> Vec<u8> {
+    let encoded_attribute = attribute.name().as_bytes();
+    let mut res = vec![ATTRIBUTE_NAME_TO_ID_PREFIX];
+    res.extend(encoded_attribute);
+    res
+}
 
 // pub fn decode_attribute(attribute: Vec<u8>) -> Attribute {
 //     todo!()
