@@ -195,8 +195,4 @@ impl WriteTx for LigatureSledWriteTx {
     fn cancel(&self) -> Result<(), LigatureError> {
         todo!()
     }
-
-    fn commit(&self) -> Result<(), LigatureError> {
-        todo!()
-    }
 }

@@ -11,7 +11,7 @@ mod write_tx;
 use codec::{decode_dataset, encode_dataset, encode_dataset_match, prepend, chomp_assert, ENTITY_ID_COUNTER_KEY, DATASET_PREFIX};
 use ligature::{
     Attribute, Dataset, Ligature, LigatureError, PersistedStatement, QueryTx, Range, Statement,
-    WriteTx,
+    WriteTx, QueryFn, WriteFn,
 };
 use query_tx::LigatureSledQueryTx;
 use std::sync::RwLock;
@@ -175,7 +175,7 @@ impl Ligature for LigatureSled {
         Ok(())
     }
 
-    fn query(&self, dataset: &Dataset) -> Result<Box<dyn QueryTx>, LigatureError> {
+    fn query<T>(&self, dataset: &Dataset, f: QueryFn<T>) -> Result<T, LigatureError> {
         let store = self
             .store_lock
             .read()
@@ -185,7 +185,7 @@ impl Ligature for LigatureSled {
             let tree = store
                 .open_tree(dataset.name())
                 .map_err(|_| LigatureError("Error starting query transaction.".to_string()))?;
-            Ok(Box::new(LigatureSledQueryTx::new(tree)))
+            f(Box::new(LigatureSledQueryTx::new(tree)))
         } else {
             Err(LigatureError(
                 "Error starting query transaction.".to_string(),
@@ -193,7 +193,7 @@ impl Ligature for LigatureSled {
         }
     }
 
-    fn write(&self, dataset: &Dataset) -> Result<Box<dyn WriteTx>, LigatureError> {
+    fn write<T>(&self, dataset: &Dataset, f: WriteFn<T>) -> Result<T, LigatureError> {
         let store = self
             .store_lock
             .write()
@@ -203,7 +203,7 @@ impl Ligature for LigatureSled {
             let tree = store
                 .open_tree(dataset.name())
                 .map_err(|_| LigatureError("Error starting query transaction.".to_string()))?;
-            Ok(Box::new(LigatureSledWriteTx::new(tree)))
+            f(Box::new(LigatureSledWriteTx::new(tree)))
         } else {
             Err(LigatureError(
                 "Error starting write transaction.".to_string(),

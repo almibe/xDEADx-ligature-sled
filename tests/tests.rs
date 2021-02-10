@@ -112,55 +112,55 @@ mod tests {
         Ok(())
     }
 
-    #[test]
-    fn new_datasets_should_be_empty() -> Result<(), LigatureError> {
-        let instance = instance();
-        let test_dataset = dataset("test/test");
-        instance.create_dataset(&test_dataset)?;
-        let read_tx = instance.query(&test_dataset)?;
-        let res: Vec<Result<PersistedStatement, LigatureError>> =
-            read_tx.all_statements().collect();
-        assert!(res.is_empty());
-        Ok(())
-    }
+    // #[test]
+    // fn new_datasets_should_be_empty() -> Result<(), LigatureError> {
+    //     let instance = instance();
+    //     let test_dataset = dataset("test/test");
+    //     instance.create_dataset(&test_dataset)?;
+    //     let read_tx = instance.query(&test_dataset)?;
+    //     let res: Vec<Result<PersistedStatement, LigatureError>> =
+    //         read_tx.all_statements().collect();
+    //     assert!(res.is_empty());
+    //     Ok(())
+    // }
 
-    #[test]
-    fn create_new_entity() -> Result<(), LigatureError> {
-        let instance = instance();
-        let test_dataset = dataset("test/test");
-        instance.create_dataset(&test_dataset)?;
-        let write_tx = instance.write(&test_dataset)?;
-        let entity1 = write_tx.new_entity()?;
-        let entity2 = write_tx.new_entity()?;
-        assert_eq!(entity1.0, 1);
-        assert_eq!(entity2.0, 2);
-        assert!(entity1 != entity2);
-        Ok(())
-    }
+    // #[test]
+    // fn create_new_entity() -> Result<(), LigatureError> {
+    //     let instance = instance();
+    //     let test_dataset = dataset("test/test");
+    //     instance.create_dataset(&test_dataset)?;
+    //     let write_tx = instance.write(&test_dataset)?;
+    //     let entity1 = write_tx.new_entity()?;
+    //     let entity2 = write_tx.new_entity()?;
+    //     assert_eq!(entity1.0, 1);
+    //     assert_eq!(entity2.0, 2);
+    //     assert!(entity1 != entity2);
+    //     Ok(())
+    // }
 
-    #[test]
-    fn add_a_basic_statement() -> Result<(), LigatureError> {
-        let instance = instance();
-        let test_dataset = dataset("test/test");
-        instance.create_dataset(&test_dataset)?;
-        let write_tx = instance.write(&test_dataset)?;
-        let entity = write_tx.new_entity()?;
-        let attribute = Attribute::new("name")?;
-        let value = Value::StringLiteral("Juniper".to_string());
-        let statement = Statement {
-            entity: entity,
-            attribute: attribute,
-            value: value,
-        };
-        write_tx.add_statement(&statement)?;
-        write_tx.commit()?;
-        let read_tx = instance.query(&test_dataset)?;
-        let res: Vec<Result<PersistedStatement, LigatureError>> =
-            read_tx.all_statements().collect();
-        assert_eq!(res.len(), 1); //TODO check instance not just number
-                                  //TODO check context on persisted statements
-        Ok(())
-    }
+    // #[test]
+    // fn add_a_basic_statement() -> Result<(), LigatureError> {
+    //     let instance = instance();
+    //     let test_dataset = dataset("test/test");
+    //     instance.create_dataset(&test_dataset)?;
+    //     let write_tx = instance.write(&test_dataset)?;
+    //     let entity = write_tx.new_entity()?;
+    //     let attribute = Attribute::new("name")?;
+    //     let value = Value::StringLiteral("Juniper".to_string());
+    //     let statement = Statement {
+    //         entity: entity,
+    //         attribute: attribute,
+    //         value: value,
+    //     };
+    //     write_tx.add_statement(&statement)?;
+    //     write_tx.commit()?;
+    //     let read_tx = instance.query(&test_dataset)?;
+    //     let res: Vec<Result<PersistedStatement, LigatureError>> =
+    //         read_tx.all_statements().collect();
+    //     assert_eq!(res.len(), 1); //TODO check instance not just number
+    //                               //TODO check context on persisted statements
+    //     Ok(())
+    // }
 
     // #[test]
     // fn new_node() {
