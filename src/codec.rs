@@ -71,7 +71,7 @@ pub fn encode_id(id: u64) -> Vec<u8> {
 
 /// Decodes the value stored for an id.
 pub fn decode_id(id: Vec<u8>) -> Result<u64, LigatureError> {
-    if (id.len() == 8) {
+    if id.len() == 8 {
         Ok(u64::from_be_bytes([
             id[0], id[1], id[2], id[3], id[4], id[5], id[6], id[7],
         ]))

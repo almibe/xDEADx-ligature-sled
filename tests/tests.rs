@@ -5,7 +5,7 @@
 #[cfg(test)]
 mod tests {
     use ligature::{
-        Attribute, Dataset, Ligature, LigatureError, PersistedStatement, Statement, Value,
+        Attribute, Dataset, Ligature, LigatureError, PersistedStatement, Statement, Value, QueryTx, WriteTx,
     };
     use ligature_sled::LigatureSled;
 
@@ -112,31 +112,33 @@ mod tests {
         Ok(())
     }
 
-    // #[test]
-    // fn new_datasets_should_be_empty() -> Result<(), LigatureError> {
-    //     let instance = instance();
-    //     let test_dataset = dataset("test/test");
-    //     instance.create_dataset(&test_dataset)?;
-    //     let read_tx = instance.query(&test_dataset)?;
-    //     let res: Vec<Result<PersistedStatement, LigatureError>> =
-    //         read_tx.all_statements().collect();
-    //     assert!(res.is_empty());
-    //     Ok(())
-    // }
+    #[test]
+    fn new_datasets_should_be_empty() -> Result<(), LigatureError> {
+        let instance = instance();
+        let test_dataset = dataset("test/test");
+        instance.create_dataset(&test_dataset)?;
+        let res: Vec<PersistedStatement> = instance.query(&test_dataset, Box::new(|tx| {
+            tx.all_statements().collect()
+        }))?;
+        assert!(res.is_empty());
+        Ok(())
+    }
 
-    // #[test]
-    // fn create_new_entity() -> Result<(), LigatureError> {
-    //     let instance = instance();
-    //     let test_dataset = dataset("test/test");
-    //     instance.create_dataset(&test_dataset)?;
-    //     let write_tx = instance.write(&test_dataset)?;
-    //     let entity1 = write_tx.new_entity()?;
-    //     let entity2 = write_tx.new_entity()?;
-    //     assert_eq!(entity1.0, 1);
-    //     assert_eq!(entity2.0, 2);
-    //     assert!(entity1 != entity2);
-    //     Ok(())
-    // }
+    #[test]
+    fn create_new_entity() -> Result<(), LigatureError> {
+        let instance = instance();
+        let test_dataset = dataset("test/test");
+        instance.create_dataset(&test_dataset)?;
+        let (entity1, entity2) = instance.write(&test_dataset, Box::new(|tx| {
+            let entity1 = tx.new_entity()?;
+            let entity2 = tx.new_entity()?;
+            Ok((entity1, entity2))
+        }))?;
+        assert_eq!(entity1.0, 1);
+        assert_eq!(entity2.0, 2);
+        assert!(entity1 != entity2);
+        Ok(())
+    }
 
     // #[test]
     // fn add_a_basic_statement() -> Result<(), LigatureError> {
