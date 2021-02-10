@@ -8,7 +8,7 @@ mod codec;
 mod query_tx;
 mod write_tx;
 
-use codec::{decode_dataset, encode_dataset, encode_dataset_match, ENTITY_ID_PREFIX};
+use codec::{decode_dataset, encode_dataset, encode_dataset_match, prepend, chomp_assert, ENTITY_ID_COUNTER_KEY, DATASET_PREFIX};
 use ligature::{
     Attribute, Dataset, Ligature, LigatureError, PersistedStatement, QueryTx, Range, Statement,
     WriteTx,
@@ -73,16 +73,10 @@ impl LigatureSled {
 impl Ligature for LigatureSled {
     fn all_datasets(&self) -> Box<dyn Iterator<Item = Result<Dataset, LigatureError>>> {
         let store = self.store_lock.read().unwrap(); //to use map_err
-        let iter = store.scan_prefix(vec![0]); //store.iter();
+        let iter = store.scan_prefix(vec![DATASET_PREFIX]); //store.iter();
         Box::new(iter.map(|ds| {
             match ds {
-                Ok(dataset) => {
-                    match decode_dataset(dataset.0.to_vec()) {
-                        //TODO use map_err here
-                        Ok(d) => Ok(d),
-                        Err(err) => Err(LigatureError("Error decoding dataset.".to_string())),
-                    }
-                }
+                Ok(dataset) => decode_dataset(chomp_assert(DATASET_PREFIX, dataset.0.to_vec())?),
                 Err(_) => Err(LigatureError("Error iterating Datasets.".to_string())),
             }
         }))
@@ -90,7 +84,7 @@ impl Ligature for LigatureSled {
 
     fn dataset_exists(&self, dataset: &Dataset) -> Result<bool, LigatureError> {
         let store = self.store_lock.read().unwrap(); //to use map_err
-        let encoded_dataset = encode_dataset(&dataset);
+        let encoded_dataset = prepend(DATASET_PREFIX, encode_dataset(&dataset));
         LigatureSled::internal_dataset_exists(&store, &encoded_dataset)
     }
 
@@ -105,12 +99,10 @@ impl Ligature for LigatureSled {
         });
         match store_res {
             Ok(store) => {
-                let encoded_prefix = encode_dataset_match(prefix);
+                let encoded_prefix = prepend(DATASET_PREFIX, encode_dataset_match(prefix));
                 let res = store.scan_prefix(encoded_prefix);
                 Box::new(res.map(|value_res| match value_res {
-                    Ok(value) => decode_dataset(value.0.to_vec()).map_err(|_| {
-                        LigatureError(format!("Error decoding Dataset {:?}", value.0))
-                    }),
+                    Ok(value) => decode_dataset(chomp_assert(DATASET_PREFIX, value.0.to_vec())?),
                     Err(e) => Err(LigatureError(
                         "Error presfix matching Datasets.".to_string(),
                     )),
@@ -132,13 +124,11 @@ impl Ligature for LigatureSled {
         });
         match store_res {
             Ok(store) => {
-                let encoded_from = encode_dataset_match(from);
-                let encoded_to = encode_dataset_match(to);
+                let encoded_from = prepend(DATASET_PREFIX, encode_dataset_match(from));
+                let encoded_to = prepend(DATASET_PREFIX, encode_dataset_match(to));
                 let res = store.range(encoded_from..encoded_to);
                 Box::new(res.map(|value_res| match value_res {
-                    Ok(value) => decode_dataset(value.0.to_vec()).map_err(|_| {
-                        LigatureError(format!("Error decoding Dataset {:?}", value.0))
-                    }),
+                    Ok(value) => decode_dataset(chomp_assert(DATASET_PREFIX, value.0.to_vec())?),
                     Err(e) => Err(LigatureError(
                         "Error presfix matching Datasets.".to_string(),
                     )),
@@ -152,7 +142,7 @@ impl Ligature for LigatureSled {
         let store = self.store_lock.write().map_err(|_| {
             LigatureError("Error starting write transaction when adding dataset.".to_string())
         })?;
-        let encoded_dataset = encode_dataset(dataset);
+        let encoded_dataset = prepend(DATASET_PREFIX, encode_dataset(dataset));
         if !LigatureSled::internal_dataset_exists(&store, &encoded_dataset)? {
             store
                 .insert(encoded_dataset, vec![])
@@ -162,8 +152,9 @@ impl Ligature for LigatureSled {
                 .map_err(|_| LigatureError("Error starting inserting dataset.".to_string()))?;
             let id_start: u64 = 0;
             dataset_tree
-                .insert(vec![ENTITY_ID_PREFIX], id_start.to_be_bytes().to_vec())
+                .insert(vec![ENTITY_ID_COUNTER_KEY], id_start.to_be_bytes().to_vec())
                 .map_err(|_| LigatureError("Error starting inserting dataset.".to_string()))?;
+            //TODO probably need to init other counters here as well
         }
         Ok(())
     }
@@ -172,7 +163,7 @@ impl Ligature for LigatureSled {
         let store = self.store_lock.write().map_err(|_| {
             LigatureError("Error starting write transaction when deleting dataset.".to_string())
         })?;
-        let encoded_dataset = encode_dataset(dataset);
+        let encoded_dataset = prepend(DATASET_PREFIX, encode_dataset(dataset));
         if LigatureSled::internal_dataset_exists(&store, &encoded_dataset)? {
             store
                 .remove(&encoded_dataset)
@@ -189,7 +180,7 @@ impl Ligature for LigatureSled {
             .store_lock
             .read()
             .map_err(|_| LigatureError("Error starting query transaction.".to_string()))?;
-        let encoded_dataset = encode_dataset(dataset);
+        let encoded_dataset = prepend(DATASET_PREFIX, encode_dataset(dataset));
         if LigatureSled::internal_dataset_exists(&store, &encoded_dataset)? {
             let tree = store
                 .open_tree(dataset.name())
@@ -207,7 +198,7 @@ impl Ligature for LigatureSled {
             .store_lock
             .write()
             .map_err(|_| LigatureError("Error starting write transaction.".to_string()))?;
-        let encoded_dataset = encode_dataset(dataset);
+        let encoded_dataset = prepend(DATASET_PREFIX, encode_dataset(dataset));
         if LigatureSled::internal_dataset_exists(&store, &encoded_dataset)? {
             let tree = store
                 .open_tree(dataset.name())
