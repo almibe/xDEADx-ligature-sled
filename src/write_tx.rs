@@ -6,8 +6,8 @@ use super::codec::{
     decode_dataset, decode_id, encode_attribute, encode_dataset, encode_dataset_match, encode_id,
     encode_statement_permutations, encode_string_literal, prepend, StatementIDSet,
     ATTRIBUTE_ID_COUNTER_KEY, ATTRIBUTE_ID_TO_NAME_PREFIX, ATTRIBUTE_NAME_TO_ID_PREFIX,
-    ENTITY_ID_COUNTER_KEY, STRING_LITERAL_ID_COUNTER_KEY, STRING_LITERAL_ID_TO_VALUE_PREFIX,
-    STRING_LITERAL_VALUE_TO_ID_PREFIX, STRING_VALUE_PREFIX,
+    ENTITY_ID_COUNTER_KEY, ENTITY_VALUE_PREFIX, STRING_LITERAL_ID_COUNTER_KEY,
+    STRING_LITERAL_ID_TO_VALUE_PREFIX, STRING_LITERAL_VALUE_TO_ID_PREFIX, STRING_VALUE_PREFIX,
 };
 use ligature::{
     Attribute, Dataset, Entity, Ligature, LigatureError, PersistedStatement, QueryTx, Range,
@@ -91,8 +91,8 @@ impl LigatureSledWriteTx {
     fn check_or_create_value(&self, value: &Value) -> Result<(u8, u64), LigatureError> {
         match value {
             Value::Entity(entity) => {
-                //TODO see handle entity above
-                todo!()
+                let res = self.check_entity(entity)?;
+                Ok((ENTITY_VALUE_PREFIX, res))
             }
             Value::StringLiteral(value) => self.check_or_create_string_literal(value),
             Value::IntegerLiteral(value) => {

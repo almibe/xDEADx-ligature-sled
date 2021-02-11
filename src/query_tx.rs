@@ -62,6 +62,18 @@ impl LigatureSledQueryTx {
     }
 
     fn load_value(&self, value_type: u8, value_id: u64) -> Result<Value, LigatureError> {
+        match value_type {
+            ENTITY_VALUE_PREFIX => Ok(Value::Entity(Entity(value_id))),
+            STRING_VALUE_PREFIX => Ok(Value::StringLiteral(self.load_string_literal(value_id)?)),
+            INTEGER_VALUE_PREFIX => Ok(Value::IntegerLiteral(i64::from_be_bytes(
+                value_id.to_be_bytes(),
+            ))),
+            FLOAT_VALUE_PREFIX => Ok(Value::FloatLiteral(f64::from_bits(value_id))),
+            _ => Err(LigatureError(format!("Unknown value type {}", value_type))),
+        }
+    }
+
+    fn load_string_literal(&self, string_literal_id: u64) -> Result<String, LigatureError> {
         todo!()
     }
 }

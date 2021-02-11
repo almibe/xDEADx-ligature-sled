@@ -153,55 +153,38 @@ mod tests {
                 let entity = tx.new_entity()?;
                 let attribute = Attribute::new("name")?;
                 let value = Value::StringLiteral("Juniper".to_string());
+
+                let entity2 = tx.new_entity()?;
+                let attribute2 = Attribute::new("connection")?;
+                let entity3 = Value::Entity(tx.new_entity()?);
+
                 let statement = Statement {
                     entity: entity,
                     attribute: attribute,
                     value: value,
                 };
+
+                let statement2 = Statement {
+                    entity: entity2,
+                    attribute: attribute2,
+                    value: entity3,
+                };
+
                 tx.add_statement(&statement)?;
+                tx.add_statement(&statement2)?;
                 Ok(())
             }),
         )?;
         let res: Vec<PersistedStatement> =
             instance.query(&test_dataset, Box::new(|tx| tx.all_statements().collect()))?;
-        assert_eq!(res.len(), 1); //TODO check instance not just number
+        assert_eq!(res.len(), 2); //TODO check instance not just number
                                   //TODO check context on persisted statements
         Ok(())
     }
 
     // #[test]
-    // fn new_node() {
-    //     let instance = instance();
-    //     let test_dataset = dataset("test/test");
-    //     instance.create_dataset(&test_dataset);
-    //     let write_tx = instance.write(&test_dataset)?;
-    //     let n1 = write_tx.new_node();
-    //     let arrow = Attribute("arrow");
-    //     let n2 = write_tx.new_node();
-    //     let statement = Statement {
-    //         source: n1,
-    //         arrow: arrow,
-    //         target: n2,
-    //     };
-    //     let persisted_statement = write_tx.add_statement(&statement);
-    //     let nn3 = write_tx.new_node();
-    //     let nn4 = write_tx.new_node();
-    //     let statement2 = Statement {
-    //         source: n3,
-    //         arrow: arrow,
-    //         target: n4,
-    //     }
-    //     let persisted_statement2 = write_tx.add_statement(statement2);
-    //     write_tx.commit();
-    //     let read_tx = instance.query();
-    //     let res = read_tx.allStatements(&test_dataset).toListL;
-    //     assert_equals!(
-    //         res.map, /*{ _.statement }*/
-    //         Set(
-    //             Statement(BlankNode(1), a, BlankNode(2)),
-    //             Statement(BlankNode(4), a, BlankNode(5)),
-    //         ),
-    //     );
+    // fn add_statements_with_all_value_types() -> Result<(), LigatureError> {
+    //     todo!()
     // }
 
     // #[test]
