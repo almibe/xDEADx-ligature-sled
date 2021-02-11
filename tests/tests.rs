@@ -182,33 +182,10 @@ mod tests {
         Ok(())
     }
 
-    // #[test]
-    // fn add_statements_with_all_value_types() -> Result<(), LigatureError> {
-    //     todo!()
-    // }
-
-    // #[test]
-    // fn adding_statements_to_datasets() {
-    //     let instance = LigatureMock::new();
-    //     let write_tx = instance.write();
-    //     let ent1 = tx.newNode(test_dataset);
-    //     let ent2 = tx.newNode(test_dataset);
-    //     tx.addStatement(test_dataset, Statement(ent1, a, ent2));
-    //     tx.addStatement(test_dataset, Statement(ent1, a, ent2));
-    //     write_tx.commit();
-    //     let read_tx = instance.query();
-    //     let res = read_tx
-    //         .allStatements(test_dataset)
-    //         .map /*{ _.statement }*/
-    //         .toListL;
-    //     assert_equals!(
-    //         res,
-    //         Set(
-    //             Statement(BlankNode(1), a, BlankNode(2)),
-    //             Statement(BlankNode(1), a, BlankNode(2)),
-    //         ),
-    //     )
-    // }
+    #[test]
+    fn add_statements_with_all_value_types() -> Result<(), LigatureError> {
+        todo!()
+    }
 
     // #[test]
     // fn removing_statements_from_datasets() {
@@ -231,18 +208,6 @@ mod tests {
     //         .toListL;
     //     assert_equals!(res, Set(Statement(BlankNode(3), a, BlankNode(2))));
     // }
-
-    //   #[test]
-    //   fn matching_against_a_non_existent_dataset() {
-    //        let instance = LigatureMock::new();
-
-    //     let (r1, r2) = instance.read.use { tx =>
-    //       for {
-    //         r1 = tx.matchStatements(test_dataset, null, null, StringLiteral("French")).toListL
-    //         r2 = tx.matchStatements(test_dataset, null, a, null).toListL
-    //       } yield(r1, r2)
-    //     }
-    //   }
 
     //   #[test]
     //   fn matching_statements_in_datasets() {
@@ -320,20 +285,5 @@ mod tests {
     //                   Statement(valjean, Predicate("prisonNumber"), IntegerLiteral(24601))
     //       )
     //     }
-    //   }
-
-    //   #[test]
-    //   fn matching_statements_with_dataset_literals_in_datasets() {
-    //        let instance = LigatureMock::new();
-
-    //     let res = createLigature.instance.use { instance  =>
-    //     let dataset = store.createDataset(NamedNode("test"))
-    //     dataset shouldNotBe null
-    //     let tx = dataset.writeTx()
-    //     TODO("Add values")
-    //     tx.commit()
-    //     let tx = dataset.tx()
-    //     TODO("Add assertions")
-    //     tx.cancel() // TODO add test running against a non-existant dataset w/ match-statement calls
     //   }
 }
