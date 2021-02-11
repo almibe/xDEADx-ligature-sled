@@ -23,7 +23,26 @@ impl LigatureSledQueryTx {
         &self,
         encoded_statement: Vec<u8>,
     ) -> Result<PersistedStatement, LigatureError> {
-        let statement_id_set = decode_statement_permutation(encoded_statement);
+        let statement_id_set = decode_statement_permutation(encoded_statement)?;
+        let entity = Entity(statement_id_set.entity_id);
+        let attribute = self.load_attribute(statement_id_set.attribute_id);
+        let value = self.load_value(statement_id_set.value_prefix, statement_id_set.value_id);
+        let context = Entity(statement_id_set.context_id);
+        Ok(PersistedStatement {
+            statement: Statement {
+                entity: entity,
+                attribute: attribute,
+                value: value,
+            },
+            context: context,
+        })
+    }
+
+    fn load_attribute(&self, attribute_id: u64) -> Attribute {
+        todo!()
+    }
+
+    fn load_value(&self, value_type: u8, value_id: u64) -> Value {
         todo!()
     }
 }

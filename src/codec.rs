@@ -155,22 +155,69 @@ fn flatten(v: Vec<&Vec<u8>>) -> Vec<u8> {
 pub fn encode_statement_permutations(statement_ids: &StatementIDSet) -> Vec<Vec<u8>> {
     let entity = encode_id(statement_ids.entity_id);
     let attribute = encode_id(statement_ids.attribute_id);
-    let value = prepend(statement_ids.value_prefix, encode_id(statement_ids.value_id));
+    let value = prepend(
+        statement_ids.value_prefix,
+        encode_id(statement_ids.value_id),
+    );
     let context = encode_id(statement_ids.context_id);
 
-    let eavc = flatten(vec![&vec![EAVC_PREFIX], &entity, &attribute, &value, &context]);
-    let evac = flatten(vec![&vec![EVAC_PREFIX], &entity, &value, &attribute, &context]);
-    let aevc = flatten(vec![&vec![AEVC_PREFIX], &attribute, &entity, &value, &context]);
-    let avec = flatten(vec![&vec![AVEC_PREFIX], &attribute, &value, &entity, &context]);
-    let veac = flatten(vec![&vec![VEAC_PREFIX], &value, &entity, &attribute, &context]);
-    let vaec = flatten(vec![&vec![VAEC_PREFIX], &value, &attribute, &entity, &context]);
-    let ceav = flatten(vec![&vec![CEAV_PREFIX], &context, &entity, &attribute, &value]);
+    let eavc = flatten(vec![
+        &vec![EAVC_PREFIX],
+        &entity,
+        &attribute,
+        &value,
+        &context,
+    ]);
+    let evac = flatten(vec![
+        &vec![EVAC_PREFIX],
+        &entity,
+        &value,
+        &attribute,
+        &context,
+    ]);
+    let aevc = flatten(vec![
+        &vec![AEVC_PREFIX],
+        &attribute,
+        &entity,
+        &value,
+        &context,
+    ]);
+    let avec = flatten(vec![
+        &vec![AVEC_PREFIX],
+        &attribute,
+        &value,
+        &entity,
+        &context,
+    ]);
+    let veac = flatten(vec![
+        &vec![VEAC_PREFIX],
+        &value,
+        &entity,
+        &attribute,
+        &context,
+    ]);
+    let vaec = flatten(vec![
+        &vec![VAEC_PREFIX],
+        &value,
+        &attribute,
+        &entity,
+        &context,
+    ]);
+    let ceav = flatten(vec![
+        &vec![CEAV_PREFIX],
+        &context,
+        &entity,
+        &attribute,
+        &value,
+    ]);
 
     vec![eavc, evac, aevc, avec, veac, vaec, ceav]
 }
 
 /// Accepts a permutation prefixed encoded statement and uses that to break up the parts into a StatementIDSet.
-pub fn decode_statement_permutation(mut statement: Vec<u8>) -> Result<StatementIDSet, LigatureError> {
+pub fn decode_statement_permutation(
+    mut statement: Vec<u8>,
+) -> Result<StatementIDSet, LigatureError> {
     let prefix = chomp_u8(&mut statement)?;
     match prefix {
         EAVC_PREFIX => decode_eavc(&mut statement),
@@ -180,18 +227,29 @@ pub fn decode_statement_permutation(mut statement: Vec<u8>) -> Result<StatementI
         VEAC_PREFIX => decode_veac(&mut statement),
         VAEC_PREFIX => decode_vaec(&mut statement),
         CEAV_PREFIX => decode_ceav(&mut statement),
-        _           => Err(LigatureError(format!("Error decoding Statement -- {:?}", statement)))
+        _ => Err(LigatureError(format!(
+            "Error decoding Statement -- {:?}",
+            statement
+        ))),
     }
 }
 
 /// Removes a u8 from the beginning of a Vec<u8>.
 fn chomp_u8(vec: &mut Vec<u8>) -> Result<u8, LigatureError> {
-    todo!()
+    if vec.is_empty() {
+        Err(LigatureError("Vector is empty.".to_string()))
+    } else {
+        Ok(vec.remove(0))
+    }
 }
 
 /// Removes a u64 from the beginning of a Vec<u8>.
 fn chomp_u64(vec: &mut Vec<u8>) -> Result<u64, LigatureError> {
-    todo!()
+    if vec.len() < 8 {
+        Err(LigatureError("Vector is not large enough to chomp u64.".to_string()))
+    } else {
+        Ok(u64::from_be_bytes([vec.remove(0), vec.remove(0), vec.remove(0), vec.remove(0), vec.remove(0), vec.remove(0), vec.remove(0), vec.remove(0)]))
+    }
 }
 
 fn decode_eavc(statement: &mut Vec<u8>) -> Result<StatementIDSet, LigatureError> {
