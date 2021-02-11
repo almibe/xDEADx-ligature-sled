@@ -29,16 +29,6 @@ pub const STRING_VALUE_PREFIX: u8 = 1;
 pub const INTEGER_VALUE_PREFIX: u8 = 2;
 pub const FLOAT_VALUE_PREFIX: u8 = 3;
 
-pub enum EncodedStatementKey {
-    EAVC,
-    EVAC,
-    AEVC,
-    AVEC,
-    VEAC,
-    VAEC,
-    CEAV,
-}
-
 pub struct StatementIDSet {
     pub entity_id: u64,
     pub attribute_id: u64,
@@ -61,7 +51,10 @@ pub fn chomp_assert(prefix: u8, vector: Vec<u8>) -> Result<Vec<u8>, LigatureErro
     if prefix == vec_prefix {
         Ok(vector_clone)
     } else {
-        Err(LigatureError(format!("Expected prefix {}, actual prefix {}.", prefix, vec_prefix)))
+        Err(LigatureError(format!(
+            "Expected prefix {}, actual prefix {}.",
+            prefix, vec_prefix
+        )))
     }
 }
 
@@ -154,20 +147,13 @@ pub fn decode_float_literal(entity: Vec<u8>) -> f64 {
     todo!()
 }
 
-/// Accepts a StatementIDs struct and returns a map with 7 entries, one for each of the different permutations.
-pub fn encode_statement(statement_ids: &StatementIDSet) -> HashMap<EncodedStatementKey, Vec<u8>> {
+/// Accepts a StatementIDs struct and returns a Vec with 7 entries, one for each of the different permutations.
+pub fn encode_statement_permutations(statement_ids: &StatementIDSet) -> Vec<Vec<u8>> {
     todo!()
 }
 
-/// Accepts an EncodedStatementKey and an encoded statement and uses that to break up the parts into a StatementIDSet.
-pub fn decode_statement(statement: (EncodedStatementKey, Vec<u8>)) -> StatementIDSet {
+/// Accepts a permutation prefixed encoded statement and uses that to break up the parts into a StatementIDSet.
+pub fn decode_statement_permutation(statement: Vec<u8>) -> StatementIDSet {
+    //TODO check first value in Vec to see what type of encoding this is.
     todo!()
 }
-
-// pub fn encode_persisted_statement(persisted_statement: &PersistedStatement) -> Vec<u8> {
-//     todo!()
-// }
-
-// pub fn decode_persisted_statement(persisted_statement: Vec<u8>) -> PersistedStatement {
-//     todo!()
-// }

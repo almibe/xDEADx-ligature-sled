@@ -3,12 +3,11 @@
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
 use super::codec::{
-    prepend, decode_dataset, decode_id,
-    encode_dataset, encode_dataset_match, encode_id, encode_attribute, encode_statement,
-    StatementIDSet,
-    ATTRIBUTE_ID_COUNTER_KEY, ENTITY_ID_COUNTER_KEY,
-    STRING_VALUE_PREFIX, encode_string_literal, STRING_LITERAL_ID_TO_VALUE_PREFIX, STRING_LITERAL_VALUE_TO_ID_PREFIX,
-    STRING_LITERAL_ID_COUNTER_KEY, ATTRIBUTE_ID_TO_NAME_PREFIX, ATTRIBUTE_NAME_TO_ID_PREFIX,
+    decode_dataset, decode_id, encode_attribute, encode_dataset, encode_dataset_match, encode_id,
+    encode_statement_permutations, encode_string_literal, prepend, StatementIDSet,
+    ATTRIBUTE_ID_COUNTER_KEY, ATTRIBUTE_ID_TO_NAME_PREFIX, ATTRIBUTE_NAME_TO_ID_PREFIX,
+    ENTITY_ID_COUNTER_KEY, STRING_LITERAL_ID_COUNTER_KEY, STRING_LITERAL_ID_TO_VALUE_PREFIX,
+    STRING_LITERAL_VALUE_TO_ID_PREFIX, STRING_VALUE_PREFIX,
 };
 use ligature::{
     Attribute, Dataset, Entity, Ligature, LigatureError, PersistedStatement, QueryTx, Range,
@@ -34,7 +33,10 @@ impl LigatureSledWriteTx {
                 let id_value = decode_id(id.to_vec())?;
                 Ok(id_value)
             }
-            None => Err(LigatureError("Could not find Dataset Counter".to_string())),
+            None => Err(LigatureError(format!(
+                "Could not find ID Counter for {}",
+                id
+            ))),
         }
     }
 
@@ -110,7 +112,10 @@ impl LigatureSledWriteTx {
         &self,
         string_literal: &String,
     ) -> Result<(u8, u64), LigatureError> {
-        let encoded_string = prepend(STRING_LITERAL_VALUE_TO_ID_PREFIX, encode_string_literal(string_literal));
+        let encoded_string = prepend(
+            STRING_LITERAL_VALUE_TO_ID_PREFIX,
+            encode_string_literal(string_literal),
+        );
         let string_opt = self
             .store
             .get(encoded_string)
@@ -138,7 +143,10 @@ impl LigatureSledWriteTx {
             })?;
         self.store
             .insert(
-                prepend(STRING_LITERAL_VALUE_TO_ID_PREFIX, encode_string_literal(string_literal)),
+                prepend(
+                    STRING_LITERAL_VALUE_TO_ID_PREFIX,
+                    encode_string_literal(string_literal),
+                ),
                 encode_id(next_string_literal_id),
             )
             .map_err(|_| {
@@ -146,7 +154,10 @@ impl LigatureSledWriteTx {
             })?;
         self.store
             .insert(
-                prepend(STRING_LITERAL_ID_TO_VALUE_PREFIX, encode_id(next_string_literal_id)),
+                prepend(
+                    STRING_LITERAL_ID_TO_VALUE_PREFIX,
+                    encode_id(next_string_literal_id),
+                ),
                 encode_string_literal(string_literal),
             )
             .map_err(|_| {
@@ -179,19 +190,10 @@ impl WriteTx for LigatureSledWriteTx {
             context_id: context.0,
         };
 
-        let permutations = encode_statement(&statement_id_set);
+        let permutations = encode_statement_permutations(&statement_id_set);
 
-        //TODO store permutations
-        //TODO - EAVC
-        //TODO - EVAC
-        //TODO - AEVC
-        //TODO - AVEC
-        //TODO - VEAC
-        //TODO - VAEC
-        //TODO - CEAV
-
-        for (k,v) in permutations {
-            //self.store.insert()
+        for p in permutations {
+            self.store.insert(p, vec![]);
         }
 
         todo!()

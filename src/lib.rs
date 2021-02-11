@@ -8,10 +8,13 @@ mod codec;
 mod query_tx;
 mod write_tx;
 
-use codec::{decode_dataset, encode_dataset, encode_dataset_match, prepend, chomp_assert, ENTITY_ID_COUNTER_KEY, DATASET_PREFIX};
+use codec::{
+    chomp_assert, decode_dataset, encode_dataset, encode_dataset_match, prepend,
+    ATTRIBUTE_ID_COUNTER_KEY, DATASET_PREFIX, ENTITY_ID_COUNTER_KEY, STRING_LITERAL_ID_COUNTER_KEY,
+};
 use ligature::{
-    Attribute, Dataset, Ligature, LigatureError, PersistedStatement, QueryTx, Range, Statement,
-    WriteTx, QueryFn, WriteFn,
+    Attribute, Dataset, Ligature, LigatureError, PersistedStatement, QueryFn, QueryTx, Range,
+    Statement, WriteFn, WriteTx,
 };
 use query_tx::LigatureSledQueryTx;
 use std::sync::RwLock;
@@ -74,11 +77,9 @@ impl Ligature for LigatureSled {
     fn all_datasets(&self) -> Box<dyn Iterator<Item = Result<Dataset, LigatureError>>> {
         let store = self.store_lock.read().unwrap(); //to use map_err
         let iter = store.scan_prefix(vec![DATASET_PREFIX]); //store.iter();
-        Box::new(iter.map(|ds| {
-            match ds {
-                Ok(dataset) => decode_dataset(chomp_assert(DATASET_PREFIX, dataset.0.to_vec())?),
-                Err(_) => Err(LigatureError("Error iterating Datasets.".to_string())),
-            }
+        Box::new(iter.map(|ds| match ds {
+            Ok(dataset) => decode_dataset(chomp_assert(DATASET_PREFIX, dataset.0.to_vec())?),
+            Err(_) => Err(LigatureError("Error iterating Datasets.".to_string())),
         }))
     }
 
@@ -140,21 +141,50 @@ impl Ligature for LigatureSled {
 
     fn create_dataset(&self, dataset: &Dataset) -> Result<(), LigatureError> {
         let store = self.store_lock.write().map_err(|_| {
-            LigatureError("Error starting write transaction when adding dataset.".to_string())
+            LigatureError(format!(
+                "Error starting write transaction when adding dataset {:?}.",
+                dataset
+            ))
         })?;
         let encoded_dataset = prepend(DATASET_PREFIX, encode_dataset(dataset));
         if !LigatureSled::internal_dataset_exists(&store, &encoded_dataset)? {
             store
                 .insert(encoded_dataset, vec![])
-                .map_err(|_| LigatureError("Error starting inserting dataset.".to_string()))?;
-            let dataset_tree = store
-                .open_tree(dataset.name())
-                .map_err(|_| LigatureError("Error starting inserting dataset.".to_string()))?;
+                .map_err(|_| LigatureError(format!("Error inserting dataset {:?}.", dataset)))?;
+            let dataset_tree = store.open_tree(dataset.name()).map_err(|_| {
+                LigatureError(format!("Error creating dataset tree for {:?}.", dataset))
+            })?;
             let id_start: u64 = 0;
             dataset_tree
                 .insert(vec![ENTITY_ID_COUNTER_KEY], id_start.to_be_bytes().to_vec())
-                .map_err(|_| LigatureError("Error starting inserting dataset.".to_string()))?;
-            //TODO probably need to init other counters here as well
+                .map_err(|_| {
+                    LigatureError(format!(
+                        "Error creating dataset entity id counter for {:?}.",
+                        dataset
+                    ))
+                })?;
+            dataset_tree
+                .insert(
+                    vec![ATTRIBUTE_ID_COUNTER_KEY],
+                    id_start.to_be_bytes().to_vec(),
+                )
+                .map_err(|_| {
+                    LigatureError(format!(
+                        "Error creating dataset attribute id counter for {:?}.",
+                        dataset
+                    ))
+                })?;
+            dataset_tree
+                .insert(
+                    vec![STRING_LITERAL_ID_COUNTER_KEY],
+                    id_start.to_be_bytes().to_vec(),
+                )
+                .map_err(|_| {
+                    LigatureError(format!(
+                        "Error creating dataset string literal id counter for {:?}.",
+                        dataset
+                    ))
+                })?;
         }
         Ok(())
     }

@@ -5,7 +5,7 @@
 #[cfg(test)]
 mod tests {
     use ligature::{
-        Attribute, Dataset, Ligature, LigatureError, PersistedStatement, Statement, Value, QueryTx, WriteTx,
+        Attribute, Dataset, Ligature, LigatureError, PersistedStatement, Statement, Value,
     };
     use ligature_sled::LigatureSled;
 
@@ -117,9 +117,8 @@ mod tests {
         let instance = instance();
         let test_dataset = dataset("test/test");
         instance.create_dataset(&test_dataset)?;
-        let res: Vec<PersistedStatement> = instance.query(&test_dataset, Box::new(|tx| {
-            tx.all_statements().collect()
-        }))?;
+        let res: Vec<PersistedStatement> =
+            instance.query(&test_dataset, Box::new(|tx| tx.all_statements().collect()))?;
         assert!(res.is_empty());
         Ok(())
     }
@@ -129,11 +128,14 @@ mod tests {
         let instance = instance();
         let test_dataset = dataset("test/test");
         instance.create_dataset(&test_dataset)?;
-        let (entity1, entity2) = instance.write(&test_dataset, Box::new(|tx| {
-            let entity1 = tx.new_entity()?;
-            let entity2 = tx.new_entity()?;
-            Ok((entity1, entity2))
-        }))?;
+        let (entity1, entity2) = instance.write(
+            &test_dataset,
+            Box::new(|tx| {
+                let entity1 = tx.new_entity()?;
+                let entity2 = tx.new_entity()?;
+                Ok((entity1, entity2))
+            }),
+        )?;
         assert_eq!(entity1.0, 1);
         assert_eq!(entity2.0, 2);
         assert!(entity1 != entity2);
@@ -145,21 +147,23 @@ mod tests {
         let instance = instance();
         let test_dataset = dataset("test/test");
         instance.create_dataset(&test_dataset)?;
-        instance.write(&test_dataset, Box::new(|tx| {
-            let entity = tx.new_entity()?;
-            let attribute = Attribute::new("name")?;
-            let value = Value::StringLiteral("Juniper".to_string());
-            let statement = Statement {
-                entity: entity,
-                attribute: attribute,
-                value: value,
-            };
-            tx.add_statement(&statement);
-            Ok(())
-        }))?;
-        let res: Vec<PersistedStatement> = instance.query(&test_dataset, Box::new(|tx| {
-            tx.all_statements().collect()
-        }))?;
+        instance.write(
+            &test_dataset,
+            Box::new(|tx| {
+                let entity = tx.new_entity()?;
+                let attribute = Attribute::new("name")?;
+                let value = Value::StringLiteral("Juniper".to_string());
+                let statement = Statement {
+                    entity: entity,
+                    attribute: attribute,
+                    value: value,
+                };
+                tx.add_statement(&statement)?;
+                Ok(())
+            }),
+        )?;
+        let res: Vec<PersistedStatement> =
+            instance.query(&test_dataset, Box::new(|tx| tx.all_statements().collect()))?;
         assert_eq!(res.len(), 1); //TODO check instance not just number
                                   //TODO check context on persisted statements
         Ok(())

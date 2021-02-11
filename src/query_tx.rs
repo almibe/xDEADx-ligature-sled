@@ -2,7 +2,9 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
-use super::codec::{decode_dataset, encode_dataset, encode_dataset_match, decode_statement, EncodedStatementKey, EAVC_PREFIX,};
+use super::codec::{
+    decode_dataset, decode_statement_permutation, encode_dataset, encode_dataset_match, EAVC_PREFIX,
+};
 use ligature::{
     Attribute, Dataset, Entity, Ligature, LigatureError, PersistedStatement, QueryTx, Range,
     Statement, Value, WriteTx,
@@ -17,7 +19,11 @@ impl LigatureSledQueryTx {
         Self { store: store }
     }
 
-    fn load_statement(&self, encoding_type: EncodedStatementKey, encoded_statement: Vec<u8>) -> Result<PersistedStatement, LigatureError> {
+    fn load_statement(
+        &self,
+        encoded_statement: Vec<u8>,
+    ) -> Result<PersistedStatement, LigatureError> {
+        let statement_id_set = decode_statement_permutation(encoded_statement);
         todo!()
     }
 }
@@ -27,11 +33,9 @@ impl QueryTx for LigatureSledQueryTx {
         &self,
     ) -> Box<dyn Iterator<Item = Result<PersistedStatement, LigatureError>> + '_> {
         let itr = self.store.scan_prefix(vec![EAVC_PREFIX]);
-        Box::new(itr.map(move |eavc_res| {
-            match eavc_res {
-                Ok(eavc) => Ok(self.load_statement(EncodedStatementKey::EAVC, eavc.0.to_vec())?),
-                Err(_) => Err(LigatureError("Error iterating Statements.".to_string()))
-            }
+        Box::new(itr.map(move |eavc_res| match eavc_res {
+            Ok(eavc) => Ok(self.load_statement(eavc.0.to_vec())?),
+            Err(_) => Err(LigatureError("Error iterating Statements.".to_string())),
         }))
     }
 
