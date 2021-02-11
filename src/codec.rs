@@ -104,8 +104,14 @@ pub fn encode_attribute(attribute: &Attribute) -> Vec<u8> {
     attribute.name().as_bytes().to_vec()
 }
 
-pub fn decode_attribute(attribute: Vec<u8>) -> Attribute {
-    todo!()
+pub fn decode_attribute(attribute: Vec<u8>) -> Result<Attribute, LigatureError> {
+    let attribute_name = std::str::from_utf8(&attribute).map_err(|_| {
+        LigatureError(format!(
+            "Error converting encoded Attribute to Attribute - {:?}",
+            attribute
+        ))
+    })?;
+    Attribute::new(attribute_name)
 }
 
 /// Encodes a value by delegating to the specific impl.
@@ -246,9 +252,20 @@ fn chomp_u8(vec: &mut Vec<u8>) -> Result<u8, LigatureError> {
 /// Removes a u64 from the beginning of a Vec<u8>.
 fn chomp_u64(vec: &mut Vec<u8>) -> Result<u64, LigatureError> {
     if vec.len() < 8 {
-        Err(LigatureError("Vector is not large enough to chomp u64.".to_string()))
+        Err(LigatureError(
+            "Vector is not large enough to chomp u64.".to_string(),
+        ))
     } else {
-        Ok(u64::from_be_bytes([vec.remove(0), vec.remove(0), vec.remove(0), vec.remove(0), vec.remove(0), vec.remove(0), vec.remove(0), vec.remove(0)]))
+        Ok(u64::from_be_bytes([
+            vec.remove(0),
+            vec.remove(0),
+            vec.remove(0),
+            vec.remove(0),
+            vec.remove(0),
+            vec.remove(0),
+            vec.remove(0),
+            vec.remove(0),
+        ]))
     }
 }
 

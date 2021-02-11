@@ -3,7 +3,8 @@
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
 use super::codec::{
-    decode_dataset, decode_statement_permutation, encode_dataset, encode_dataset_match, EAVC_PREFIX,
+    decode_attribute, decode_dataset, decode_statement_permutation, encode_dataset,
+    encode_dataset_match, prepend, ATTRIBUTE_ID_TO_NAME_PREFIX, EAVC_PREFIX,
 };
 use ligature::{
     Attribute, Dataset, Entity, Ligature, LigatureError, PersistedStatement, QueryTx, Range,
@@ -25,8 +26,8 @@ impl LigatureSledQueryTx {
     ) -> Result<PersistedStatement, LigatureError> {
         let statement_id_set = decode_statement_permutation(encoded_statement)?;
         let entity = Entity(statement_id_set.entity_id);
-        let attribute = self.load_attribute(statement_id_set.attribute_id);
-        let value = self.load_value(statement_id_set.value_prefix, statement_id_set.value_id);
+        let attribute = self.load_attribute(statement_id_set.attribute_id)?;
+        let value = self.load_value(statement_id_set.value_prefix, statement_id_set.value_id)?;
         let context = Entity(statement_id_set.context_id);
         Ok(PersistedStatement {
             statement: Statement {
@@ -38,11 +39,29 @@ impl LigatureSledQueryTx {
         })
     }
 
-    fn load_attribute(&self, attribute_id: u64) -> Attribute {
-        todo!()
+    fn load_attribute(&self, attribute_id: u64) -> Result<Attribute, LigatureError> {
+        let encoded_attribute_opt = self
+            .store
+            .get(prepend(
+                ATTRIBUTE_ID_TO_NAME_PREFIX,
+                attribute_id.to_be_bytes().to_vec(),
+            ))
+            .map_err(|_| {
+                LigatureError(format!(
+                    "Error looking up attribute with id = {}",
+                    attribute_id
+                ))
+            })?;
+        match encoded_attribute_opt {
+            Some(encoded_attribute) => decode_attribute(encoded_attribute.to_vec()),
+            None => Err(LigatureError(format!(
+                "Could not find attribute with id = {}",
+                attribute_id
+            ))),
+        }
     }
 
-    fn load_value(&self, value_type: u8, value_id: u64) -> Value {
+    fn load_value(&self, value_type: u8, value_id: u64) -> Result<Value, LigatureError> {
         todo!()
     }
 }
