@@ -6,6 +6,7 @@ use ligature::{
     Attribute, Dataset, Entity, Ligature, LigatureError, PersistedStatement, QueryTx, Statement,
     Value, WriteTx,
 };
+use std::collections::HashMap;
 
 pub const DATASET_PREFIX: u8 = 0;
 pub const ENTITY_ID_COUNTER_KEY: u8 = 1;
@@ -27,6 +28,24 @@ pub const ENTITY_VALUE_PREFIX: u8 = 0;
 pub const STRING_VALUE_PREFIX: u8 = 1;
 pub const INTEGER_VALUE_PREFIX: u8 = 2;
 pub const FLOAT_VALUE_PREFIX: u8 = 3;
+
+pub enum EncodedStatementKey {
+    EAVC,
+    EVAC,
+    AEVC,
+    AVEC,
+    VEAC,
+    VAEC,
+    CEAV,
+}
+
+pub struct StatementIDSet {
+    pub entity_id: u64,
+    pub attribute_id: u64,
+    pub value_prefix: u8,
+    pub value_id: u64,
+    pub context_id: u64,
+}
 
 /// Prepends the given prefix to the given vector.
 pub fn prepend(prefix: u8, vector: Vec<u8>) -> Vec<u8> {
@@ -135,13 +154,15 @@ pub fn decode_float_literal(entity: Vec<u8>) -> f64 {
     todo!()
 }
 
-// pub fn encode_statement(statement: &Statement) -> Vec<u8> {
-//     todo!()
-// }
+/// Accepts a StatementIDs struct and returns a map with 7 entries, one for each of the different permutations.
+pub fn encode_statement(statement_ids: &StatementIDSet) -> HashMap<EncodedStatementKey, Vec<u8>> {
+    todo!()
+}
 
-// pub fn decode_statement(statement: Vec<u8>) -> Statement {
-//     todo!()
-// }
+/// Accepts an EncodedStatementKey and an encoded statement and uses that to break up the parts into a StatementIDSet.
+pub fn decode_statement(statement: (EncodedStatementKey, Vec<u8>)) -> StatementIDSet {
+    todo!()
+}
 
 // pub fn encode_persisted_statement(persisted_statement: &PersistedStatement) -> Vec<u8> {
 //     todo!()

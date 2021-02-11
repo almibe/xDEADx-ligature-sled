@@ -43,15 +43,12 @@ Entities are referneced by their IDs.
 Attributes are referenced by their IDs.
 Values are referenced by the above prefix and their value (if a long or float) or ID (if a String or Entity).
 Contexts are referenced by their IDs (they are just Entities).
+So for example below is how EAVC is stored.
 
-`E = Entity; A = Attribute; V = Value; C = Context;`
-* `EAVC`
-* `EVAC`
-* `AEVC`
-* `AVEC`
-* `VEAC`
-* `VAEC`
-* `CEAV`
+| Prefix | Entity | Attribute | Value w/ Prefix | Context |
+| `u8 `  | `u64`  | `u64`     | `u8 u64`        | `u64`   |
+
+A similar pattern is used for the other six entries.
 
 ## Building
 This project uses cargo for building.

@@ -4,7 +4,8 @@
 
 use super::codec::{
     prepend, decode_dataset, decode_id,
-    encode_dataset, encode_dataset_match, encode_id, encode_attribute,
+    encode_dataset, encode_dataset_match, encode_id, encode_attribute, encode_statement,
+    StatementIDSet,
     ATTRIBUTE_ID_COUNTER_KEY, ENTITY_ID_COUNTER_KEY,
     STRING_VALUE_PREFIX, encode_string_literal, STRING_LITERAL_ID_TO_VALUE_PREFIX, STRING_LITERAL_VALUE_TO_ID_PREFIX,
     STRING_LITERAL_ID_COUNTER_KEY, ATTRIBUTE_ID_TO_NAME_PREFIX, ATTRIBUTE_NAME_TO_ID_PREFIX,
@@ -165,10 +166,20 @@ impl WriteTx for LigatureSledWriteTx {
     }
 
     fn add_statement(&self, statement: &Statement) -> Result<PersistedStatement, LigatureError> {
-        let entity = self.check_entity(&statement.entity)?;
-        let attribute_id = self.check_or_create_attribute(&statement.attribute);
-        let value_id = self.check_or_create_value(&statement.value);
+        let entity_id = self.check_entity(&statement.entity)?;
+        let attribute_id = self.check_or_create_attribute(&statement.attribute)?;
+        let (value_type_prefix, value_id) = self.check_or_create_value(&statement.value)?;
         let context = self.new_entity()?;
+
+        let statement_id_set = StatementIDSet {
+            entity_id: entity_id,
+            attribute_id: attribute_id,
+            value_prefix: value_type_prefix,
+            value_id: value_id,
+            context_id: context.0,
+        };
+
+        let permutations = encode_statement(&statement_id_set);
 
         //TODO store permutations
         //TODO - EAVC
@@ -179,10 +190,16 @@ impl WriteTx for LigatureSledWriteTx {
         //TODO - VAEC
         //TODO - CEAV
 
-        Ok(PersistedStatement {
-            statement: statement.clone(),
-            context: context,
-        })
+        for (k,v) in permutations {
+            //self.store.insert()
+        }
+
+        todo!()
+
+        // Ok(PersistedStatement {
+        //     statement: statement.clone(),
+        //     context: context,
+        // })
     }
 
     fn remove_statement(
