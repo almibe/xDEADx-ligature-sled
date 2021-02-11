@@ -147,13 +147,119 @@ pub fn decode_float_literal(entity: Vec<u8>) -> f64 {
     todo!()
 }
 
+fn flatten(v: Vec<&Vec<u8>>) -> Vec<u8> {
+    v.into_iter().cloned().flatten().collect()
+}
+
 /// Accepts a StatementIDs struct and returns a Vec with 7 entries, one for each of the different permutations.
 pub fn encode_statement_permutations(statement_ids: &StatementIDSet) -> Vec<Vec<u8>> {
-    todo!()
+    let entity = encode_id(statement_ids.entity_id);
+    let attribute = encode_id(statement_ids.attribute_id);
+    let value = prepend(statement_ids.value_prefix, encode_id(statement_ids.value_id));
+    let context = encode_id(statement_ids.context_id);
+
+    let eavc = flatten(vec![&vec![EAVC_PREFIX], &entity, &attribute, &value, &context]);
+    let evac = flatten(vec![&vec![EVAC_PREFIX], &entity, &value, &attribute, &context]);
+    let aevc = flatten(vec![&vec![AEVC_PREFIX], &attribute, &entity, &value, &context]);
+    let avec = flatten(vec![&vec![AVEC_PREFIX], &attribute, &value, &entity, &context]);
+    let veac = flatten(vec![&vec![VEAC_PREFIX], &value, &entity, &attribute, &context]);
+    let vaec = flatten(vec![&vec![VAEC_PREFIX], &value, &attribute, &entity, &context]);
+    let ceav = flatten(vec![&vec![CEAV_PREFIX], &context, &entity, &attribute, &value]);
+
+    vec![eavc, evac, aevc, avec, veac, vaec, ceav]
 }
 
 /// Accepts a permutation prefixed encoded statement and uses that to break up the parts into a StatementIDSet.
-pub fn decode_statement_permutation(statement: Vec<u8>) -> StatementIDSet {
-    //TODO check first value in Vec to see what type of encoding this is.
+pub fn decode_statement_permutation(mut statement: Vec<u8>) -> Result<StatementIDSet, LigatureError> {
+    let prefix = chomp_u8(&mut statement)?;
+    match prefix {
+        EAVC_PREFIX => decode_eavc(&mut statement),
+        EVAC_PREFIX => decode_evac(&mut statement),
+        AEVC_PREFIX => decode_aevc(&mut statement),
+        AVEC_PREFIX => decode_avec(&mut statement),
+        VEAC_PREFIX => decode_veac(&mut statement),
+        VAEC_PREFIX => decode_vaec(&mut statement),
+        CEAV_PREFIX => decode_ceav(&mut statement),
+        _           => Err(LigatureError(format!("Error decoding Statement -- {:?}", statement)))
+    }
+}
+
+/// Removes a u8 from the beginning of a Vec<u8>.
+fn chomp_u8(vec: &mut Vec<u8>) -> Result<u8, LigatureError> {
     todo!()
+}
+
+/// Removes a u64 from the beginning of a Vec<u8>.
+fn chomp_u64(vec: &mut Vec<u8>) -> Result<u64, LigatureError> {
+    todo!()
+}
+
+fn decode_eavc(statement: &mut Vec<u8>) -> Result<StatementIDSet, LigatureError> {
+    Ok(StatementIDSet {
+        entity_id: chomp_u64(statement)?,
+        attribute_id: chomp_u64(statement)?,
+        value_prefix: chomp_u8(statement)?,
+        value_id: chomp_u64(statement)?,
+        context_id: chomp_u64(statement)?,
+    })
+}
+
+fn decode_evac(statement: &mut Vec<u8>) -> Result<StatementIDSet, LigatureError> {
+    Ok(StatementIDSet {
+        entity_id: chomp_u64(statement)?,
+        value_prefix: chomp_u8(statement)?,
+        value_id: chomp_u64(statement)?,
+        attribute_id: chomp_u64(statement)?,
+        context_id: chomp_u64(statement)?,
+    })
+}
+
+fn decode_aevc(statement: &mut Vec<u8>) -> Result<StatementIDSet, LigatureError> {
+    Ok(StatementIDSet {
+        attribute_id: chomp_u64(statement)?,
+        entity_id: chomp_u64(statement)?,
+        value_prefix: chomp_u8(statement)?,
+        value_id: chomp_u64(statement)?,
+        context_id: chomp_u64(statement)?,
+    })
+}
+
+fn decode_avec(statement: &mut Vec<u8>) -> Result<StatementIDSet, LigatureError> {
+    Ok(StatementIDSet {
+        attribute_id: chomp_u64(statement)?,
+        value_prefix: chomp_u8(statement)?,
+        value_id: chomp_u64(statement)?,
+        entity_id: chomp_u64(statement)?,
+        context_id: chomp_u64(statement)?,
+    })
+}
+
+fn decode_veac(statement: &mut Vec<u8>) -> Result<StatementIDSet, LigatureError> {
+    Ok(StatementIDSet {
+        value_prefix: chomp_u8(statement)?,
+        value_id: chomp_u64(statement)?,
+        entity_id: chomp_u64(statement)?,
+        attribute_id: chomp_u64(statement)?,
+        context_id: chomp_u64(statement)?,
+    })
+}
+
+fn decode_vaec(statement: &mut Vec<u8>) -> Result<StatementIDSet, LigatureError> {
+    Ok(StatementIDSet {
+        value_prefix: chomp_u8(statement)?,
+        value_id: chomp_u64(statement)?,
+        attribute_id: chomp_u64(statement)?,
+        entity_id: chomp_u64(statement)?,
+        context_id: chomp_u64(statement)?,
+    })
+}
+
+fn decode_ceav(statement: &mut Vec<u8>) -> Result<StatementIDSet, LigatureError> {
+    Ok(StatementIDSet {
+        context_id: chomp_u64(statement)?,
+        entity_id: chomp_u64(statement)?,
+        attribute_id: chomp_u64(statement)?,
+        value_prefix: chomp_u8(statement)?,
+        value_id: chomp_u64(statement)?,
+    })
 }

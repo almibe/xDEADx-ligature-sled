@@ -196,12 +196,10 @@ impl WriteTx for LigatureSledWriteTx {
             self.store.insert(p, vec![]);
         }
 
-        todo!()
-
-        // Ok(PersistedStatement {
-        //     statement: statement.clone(),
-        //     context: context,
-        // })
+        Ok(PersistedStatement {
+            statement: statement.clone(),
+            context: context,
+        })
     }
 
     fn remove_statement(
