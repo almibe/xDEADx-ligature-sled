@@ -153,43 +153,53 @@ mod tests {
                 let entity = tx.new_entity()?;
                 let attribute = Attribute::new("name")?;
                 let value = Value::StringLiteral("Juniper".to_string());
+                let string_statement = Statement {
+                    entity: entity.clone(),
+                    attribute: attribute.clone(),
+                    value: value.clone(),
+                };
 
                 let entity2 = tx.new_entity()?;
                 let attribute2 = Attribute::new("connection")?;
-                let entity3 = Value::Entity(tx.new_entity()?);
-
-                let statement = Statement {
-                    entity: entity,
-                    attribute: attribute,
-                    value: value,
+                let entity3 = tx.new_entity()?;
+                let entity_statement = Statement {
+                    entity: entity2.clone(),
+                    attribute: attribute2.clone(),
+                    value: Value::Entity(entity3.clone()),
                 };
 
-                let statement2 = Statement {
-                    entity: entity2,
-                    attribute: attribute2,
-                    value: entity3,
+                let integer = Value::IntegerLiteral(4200);
+                let integer_statement = Statement {
+                    entity: entity2.clone(),
+                    attribute: attribute2.clone(),
+                    value: integer.clone(),
                 };
 
-                tx.add_statement(&statement)?;
-                tx.add_statement(&statement2)?;
+                let float = Value::FloatLiteral(42.2);
+                let float_statement = Statement {
+                    entity: entity3.clone(),
+                    attribute: attribute2.clone(),
+                    value: float.clone(),
+                };
+
+                tx.add_statement(&string_statement)?;
+                tx.add_statement(&entity_statement)?;
+                tx.add_statement(&integer_statement)?;
+                tx.add_statement(&float_statement)?;
+
                 Ok(())
             }),
         )?;
         let res: Vec<PersistedStatement> =
             instance.query(&test_dataset, Box::new(|tx| tx.all_statements().collect()))?;
-        assert_eq!(res.len(), 2); //TODO check instance not just number
+        assert_eq!(res.len(), 4); //TODO check instance not just number
                                   //TODO check context on persisted statements
         Ok(())
     }
 
-    #[test]
-    fn add_statements_with_all_value_types() -> Result<(), LigatureError> {
-        todo!()
-    }
-
     // #[test]
-    // fn removing_statements_from_datasets() {
-    //     let instance = LigatureMock::new();
+    // fn removing_statements_from_datasets() -> Result<(), LigatureError> {
+    //     let instance = instance();
     //     let write_tx = instance.write();
     //     let nn1 = tx.newNode(test_dataset);
     //     let nn2 = tx.newNode(test_dataset);

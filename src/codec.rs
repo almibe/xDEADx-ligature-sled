@@ -33,7 +33,7 @@ pub struct StatementIDSet {
     pub entity_id: u64,
     pub attribute_id: u64,
     pub value_prefix: u8,
-    pub value_id: u64,
+    pub value_body: Vec<u8>,
     pub context_id: u64,
 }
 
@@ -92,12 +92,24 @@ pub fn decode_id(id: Vec<u8>) -> Result<u64, LigatureError> {
     }
 }
 
-pub fn encode_entity(entity: &Entity) -> Vec<u8> {
-    todo!()
+pub fn decode_integer(id: Vec<u8>) -> Result<i64, LigatureError> {
+    if id.len() == 8 {
+        Ok(i64::from_be_bytes([
+            id[0], id[1], id[2], id[3], id[4], id[5], id[6], id[7],
+        ]))
+    } else {
+        Err(LigatureError(format!("Could not convert {:?} to i64", id)))
+    }
 }
 
-pub fn decode_entity(entity: Vec<u8>) -> Entity {
-    todo!()
+pub fn decode_float(id: Vec<u8>) -> Result<f64, LigatureError> {
+    if id.len() == 8 {
+        Ok(f64::from_be_bytes([
+            id[0], id[1], id[2], id[3], id[4], id[5], id[6], id[7],
+        ]))
+    } else {
+        Err(LigatureError(format!("Could not convert {:?} to f64", id)))
+    }
 }
 
 pub fn encode_attribute(attribute: &Attribute) -> Vec<u8> {
@@ -114,43 +126,9 @@ pub fn decode_attribute(attribute: Vec<u8>) -> Result<Attribute, LigatureError> 
     Attribute::new(attribute_name)
 }
 
-/// Encodes a value by delegating to the specific impl.
-pub fn encode_value(value: &Value) -> Vec<u8> {
-    match value {
-        Value::Entity(entity) => encode_entity(entity),
-        Value::StringLiteral(value) => encode_string_literal(value),
-        Value::IntegerLiteral(value) => encode_integer_literal(value),
-        Value::FloatLiteral(value) => encode_float_literal(value),
-    }
-}
-
-pub fn decode_value(value: Vec<u8>) -> Value {
-    todo!()
-}
-
 /// Encodes a String Literal and prefixes it with STRING_VALUE_PREFIX.
 pub fn encode_string_literal(string: &str) -> Vec<u8> {
     string.as_bytes().to_vec()
-}
-
-pub fn decode_string_literal(string: Vec<u8>) -> String {
-    todo!()
-}
-
-pub fn encode_integer_literal(integer: &i64) -> Vec<u8> {
-    todo!()
-}
-
-pub fn decode_integer_literal(integer: Vec<u8>) -> i64 {
-    todo!()
-}
-
-pub fn encode_float_literal(float: &f64) -> Vec<u8> {
-    todo!()
-}
-
-pub fn decode_float_literal(entity: Vec<u8>) -> f64 {
-    todo!()
 }
 
 fn flatten(v: Vec<&Vec<u8>>) -> Vec<u8> {
@@ -161,10 +139,7 @@ fn flatten(v: Vec<&Vec<u8>>) -> Vec<u8> {
 pub fn encode_statement_permutations(statement_ids: &StatementIDSet) -> Vec<Vec<u8>> {
     let entity = encode_id(statement_ids.entity_id);
     let attribute = encode_id(statement_ids.attribute_id);
-    let value = prepend(
-        statement_ids.value_prefix,
-        encode_id(statement_ids.value_id),
-    );
+    let value = prepend(statement_ids.value_prefix, statement_ids.value_body.clone());
     let context = encode_id(statement_ids.context_id);
 
     let eavc = flatten(vec![
@@ -269,12 +244,31 @@ fn chomp_u64(vec: &mut Vec<u8>) -> Result<u64, LigatureError> {
     }
 }
 
+fn chomp_vec_u8(vec: &mut Vec<u8>) -> Result<Vec<u8>, LigatureError> {
+    if vec.len() < 8 {
+        Err(LigatureError(
+            "Vector is not large enough to chomp Vec<u8> len 8.".to_string(),
+        ))
+    } else {
+        Ok(vec![
+            vec.remove(0),
+            vec.remove(0),
+            vec.remove(0),
+            vec.remove(0),
+            vec.remove(0),
+            vec.remove(0),
+            vec.remove(0),
+            vec.remove(0),
+        ])
+    }
+}
+
 fn decode_eavc(statement: &mut Vec<u8>) -> Result<StatementIDSet, LigatureError> {
     Ok(StatementIDSet {
         entity_id: chomp_u64(statement)?,
         attribute_id: chomp_u64(statement)?,
         value_prefix: chomp_u8(statement)?,
-        value_id: chomp_u64(statement)?,
+        value_body: chomp_vec_u8(statement)?,
         context_id: chomp_u64(statement)?,
     })
 }
@@ -283,7 +277,7 @@ fn decode_evac(statement: &mut Vec<u8>) -> Result<StatementIDSet, LigatureError>
     Ok(StatementIDSet {
         entity_id: chomp_u64(statement)?,
         value_prefix: chomp_u8(statement)?,
-        value_id: chomp_u64(statement)?,
+        value_body: chomp_vec_u8(statement)?,
         attribute_id: chomp_u64(statement)?,
         context_id: chomp_u64(statement)?,
     })
@@ -294,7 +288,7 @@ fn decode_aevc(statement: &mut Vec<u8>) -> Result<StatementIDSet, LigatureError>
         attribute_id: chomp_u64(statement)?,
         entity_id: chomp_u64(statement)?,
         value_prefix: chomp_u8(statement)?,
-        value_id: chomp_u64(statement)?,
+        value_body: chomp_vec_u8(statement)?,
         context_id: chomp_u64(statement)?,
     })
 }
@@ -303,7 +297,7 @@ fn decode_avec(statement: &mut Vec<u8>) -> Result<StatementIDSet, LigatureError>
     Ok(StatementIDSet {
         attribute_id: chomp_u64(statement)?,
         value_prefix: chomp_u8(statement)?,
-        value_id: chomp_u64(statement)?,
+        value_body: chomp_vec_u8(statement)?,
         entity_id: chomp_u64(statement)?,
         context_id: chomp_u64(statement)?,
     })
@@ -312,7 +306,7 @@ fn decode_avec(statement: &mut Vec<u8>) -> Result<StatementIDSet, LigatureError>
 fn decode_veac(statement: &mut Vec<u8>) -> Result<StatementIDSet, LigatureError> {
     Ok(StatementIDSet {
         value_prefix: chomp_u8(statement)?,
-        value_id: chomp_u64(statement)?,
+        value_body: chomp_vec_u8(statement)?,
         entity_id: chomp_u64(statement)?,
         attribute_id: chomp_u64(statement)?,
         context_id: chomp_u64(statement)?,
@@ -322,7 +316,7 @@ fn decode_veac(statement: &mut Vec<u8>) -> Result<StatementIDSet, LigatureError>
 fn decode_vaec(statement: &mut Vec<u8>) -> Result<StatementIDSet, LigatureError> {
     Ok(StatementIDSet {
         value_prefix: chomp_u8(statement)?,
-        value_id: chomp_u64(statement)?,
+        value_body: chomp_vec_u8(statement)?,
         attribute_id: chomp_u64(statement)?,
         entity_id: chomp_u64(statement)?,
         context_id: chomp_u64(statement)?,
@@ -335,6 +329,6 @@ fn decode_ceav(statement: &mut Vec<u8>) -> Result<StatementIDSet, LigatureError>
         entity_id: chomp_u64(statement)?,
         attribute_id: chomp_u64(statement)?,
         value_prefix: chomp_u8(statement)?,
-        value_id: chomp_u64(statement)?,
+        value_body: chomp_vec_u8(statement)?,
     })
 }

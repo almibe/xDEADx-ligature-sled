@@ -6,8 +6,9 @@ use super::codec::{
     decode_dataset, decode_id, encode_attribute, encode_dataset, encode_dataset_match, encode_id,
     encode_statement_permutations, encode_string_literal, prepend, StatementIDSet,
     ATTRIBUTE_ID_COUNTER_KEY, ATTRIBUTE_ID_TO_NAME_PREFIX, ATTRIBUTE_NAME_TO_ID_PREFIX,
-    ENTITY_ID_COUNTER_KEY, ENTITY_VALUE_PREFIX, STRING_LITERAL_ID_COUNTER_KEY,
-    STRING_LITERAL_ID_TO_VALUE_PREFIX, STRING_LITERAL_VALUE_TO_ID_PREFIX, STRING_VALUE_PREFIX,
+    ENTITY_ID_COUNTER_KEY, ENTITY_VALUE_PREFIX, FLOAT_VALUE_PREFIX, INTEGER_VALUE_PREFIX,
+    STRING_LITERAL_ID_COUNTER_KEY, STRING_LITERAL_ID_TO_VALUE_PREFIX,
+    STRING_LITERAL_VALUE_TO_ID_PREFIX, STRING_VALUE_PREFIX,
 };
 use ligature::{
     Attribute, Dataset, Entity, Ligature, LigatureError, PersistedStatement, QueryTx, Range,
@@ -88,21 +89,17 @@ impl LigatureSledWriteTx {
 
     /// Checks if a value exists and if it does returns the Value's type prefix and the Value's id.
     /// Otherwise it create a new instance of the value and returns the same.
-    fn check_or_create_value(&self, value: &Value) -> Result<(u8, u64), LigatureError> {
+    fn check_or_create_value(&self, value: &Value) -> Result<(u8, Vec<u8>), LigatureError> {
         match value {
             Value::Entity(entity) => {
                 let res = self.check_entity(entity)?;
-                Ok((ENTITY_VALUE_PREFIX, res))
+                Ok((ENTITY_VALUE_PREFIX, res.to_be_bytes().to_vec()))
             }
             Value::StringLiteral(value) => self.check_or_create_string_literal(value),
             Value::IntegerLiteral(value) => {
-                //TODO encode long and use
-                todo!()
+                Ok((INTEGER_VALUE_PREFIX, value.to_be_bytes().to_vec()))
             }
-            Value::FloatLiteral(value) => {
-                //TODO encode float and use
-                todo!()
-            }
+            Value::FloatLiteral(value) => Ok((FLOAT_VALUE_PREFIX, value.to_be_bytes().to_vec())),
         }
     }
 
@@ -111,7 +108,7 @@ impl LigatureSledWriteTx {
     fn check_or_create_string_literal(
         &self,
         string_literal: &String,
-    ) -> Result<(u8, u64), LigatureError> {
+    ) -> Result<(u8, Vec<u8>), LigatureError> {
         let encoded_string = prepend(
             STRING_LITERAL_VALUE_TO_ID_PREFIX,
             encode_string_literal(string_literal),
@@ -121,10 +118,12 @@ impl LigatureSledWriteTx {
             .get(encoded_string)
             .map_err(|_| LigatureError(format!("Could not fetch String {:?}", string_literal)))?;
         match string_opt {
-            Some(s) => Ok((STRING_VALUE_PREFIX, decode_id(s.to_vec())?)),
+            Some(s) => Ok((STRING_VALUE_PREFIX, s.to_vec())),
             None => Ok((
                 STRING_VALUE_PREFIX,
-                self.create_string_literal(string_literal)?,
+                self.create_string_literal(string_literal)?
+                    .to_be_bytes()
+                    .to_vec(),
             )),
         }
     }
@@ -179,14 +178,14 @@ impl WriteTx for LigatureSledWriteTx {
     fn add_statement(&self, statement: &Statement) -> Result<PersistedStatement, LigatureError> {
         let entity_id = self.check_entity(&statement.entity)?;
         let attribute_id = self.check_or_create_attribute(&statement.attribute)?;
-        let (value_type_prefix, value_id) = self.check_or_create_value(&statement.value)?;
+        let (value_type_prefix, value_body) = self.check_or_create_value(&statement.value)?;
         let context = self.new_entity()?;
 
         let statement_id_set = StatementIDSet {
             entity_id: entity_id,
             attribute_id: attribute_id,
             value_prefix: value_type_prefix,
-            value_id: value_id,
+            value_body: value_body,
             context_id: context.0,
         };
 

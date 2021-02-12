@@ -3,8 +3,9 @@
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
 use super::codec::{
-    decode_attribute, decode_dataset, decode_statement_permutation, encode_dataset,
-    encode_dataset_match, prepend, ATTRIBUTE_ID_TO_NAME_PREFIX, EAVC_PREFIX,
+    decode_attribute, decode_dataset, decode_float, decode_id, decode_integer,
+    decode_statement_permutation, encode_dataset, encode_dataset_match, prepend,
+    ATTRIBUTE_ID_TO_NAME_PREFIX, EAVC_PREFIX,
 };
 use ligature::{
     Attribute, Dataset, Entity, Ligature, LigatureError, PersistedStatement, QueryTx, Range,
@@ -27,7 +28,7 @@ impl LigatureSledQueryTx {
         let statement_id_set = decode_statement_permutation(encoded_statement)?;
         let entity = Entity(statement_id_set.entity_id);
         let attribute = self.load_attribute(statement_id_set.attribute_id)?;
-        let value = self.load_value(statement_id_set.value_prefix, statement_id_set.value_id)?;
+        let value = self.load_value(statement_id_set.value_prefix, statement_id_set.value_body)?;
         let context = Entity(statement_id_set.context_id);
         Ok(PersistedStatement {
             statement: Statement {
@@ -61,14 +62,14 @@ impl LigatureSledQueryTx {
         }
     }
 
-    fn load_value(&self, value_type: u8, value_id: u64) -> Result<Value, LigatureError> {
+    fn load_value(&self, value_type: u8, value_body: Vec<u8>) -> Result<Value, LigatureError> {
         match value_type {
-            ENTITY_VALUE_PREFIX => Ok(Value::Entity(Entity(value_id))),
-            STRING_VALUE_PREFIX => Ok(Value::StringLiteral(self.load_string_literal(value_id)?)),
-            INTEGER_VALUE_PREFIX => Ok(Value::IntegerLiteral(i64::from_be_bytes(
-                value_id.to_be_bytes(),
-            ))),
-            FLOAT_VALUE_PREFIX => Ok(Value::FloatLiteral(f64::from_bits(value_id))),
+            ENTITY_VALUE_PREFIX => Ok(Value::Entity(Entity(decode_id(value_body)?))),
+            STRING_VALUE_PREFIX => Ok(Value::StringLiteral(
+                self.load_string_literal(decode_id(value_body)?)?,
+            )),
+            INTEGER_VALUE_PREFIX => Ok(Value::IntegerLiteral(decode_integer(value_body)?)),
+            FLOAT_VALUE_PREFIX => Ok(Value::FloatLiteral(decode_float(value_body)?)),
             _ => Err(LigatureError(format!("Unknown value type {}", value_type))),
         }
     }
