@@ -212,8 +212,6 @@ impl WriteTx for LigatureSledWriteTx {
         &self,
         persisted_statement: &PersistedStatement,
     ) -> Result<bool, LigatureError> {
-        //TODO check if statement exists
-        //TODO look up to see if there is a CEAV value that starts with CEAV_PREFIX + CONTEXT.ID
         let prefix = prepend(CEAV_PREFIX, encode_id(persisted_statement.context.0));
         let lookup: Vec<Result<(sled::IVec, sled::IVec), sled::Error>> =
             self.store.scan_prefix(prefix).collect();
@@ -224,7 +222,6 @@ impl WriteTx for LigatureSledWriteTx {
             ); //TODO not sure the best way to handle this
         }
         if lookup.len() == 0 {
-            //TODO if not return Ok(false)
             return Ok(false);
         }
         let potential_match_encoded: Vec<u8> = lookup
@@ -260,42 +257,52 @@ impl WriteTx for LigatureSledWriteTx {
             return Ok(false);
         }
         for encoded_statement in encoded_statement_permutations.iter() {
-            //delete all 7 permutations of the statement
             self.store.remove(encoded_statement).map_err(|_| {
                 LigatureError(format!(
                     "Could not remove Statement permutation {:?} for {:?}",
                     encoded_statement, persisted_statement
                 ))
-            })?; //
+            })?;
         }
 
         //TODO clean up by checking if the attribute is used in any remaining statements by checking AEVC
         let attribute_prefix = prepend(
             AEVC_PREFIX,
-            statement_id_set.attribute_id.to_be_bytes().to_vec(),
+            statement_id_set.attribute_id.to_be_bytes().to_vec(), //TODO should be encode_id
         );
         let attribute_lookup: Vec<Result<(sled::IVec, sled::IVec), sled::Error>> =
             self.store.scan_prefix(attribute_prefix).collect();
-        if attribute_lookup.len() == 0 {
-            //TODO if it isn't then delete the Attribute
-            todo!()
+        if attribute_lookup.len() == 0 { //if it isn't used in other Statements then delete the Attribute
+            let attribute_name_to_id_key = prepend(ATTRIBUTE_NAME_TO_ID_PREFIX, encode_attribute(&persisted_statement.statement.attribute));
+            let attribute_id_to_name_key = prepend(ATTRIBUTE_ID_TO_NAME_PREFIX, encode_id(statement_id_set.attribute_id));
+
+            self.store.remove(attribute_name_to_id_key); //TODO sanity check result
+            self.store.remove(attribute_id_to_name_key); //TODO sanity check result
         }
 
         //TODO clean up by checking if the Value is a String Literal
         //TODO if it is check if it is being used in any other Statements by checking VAEC
         //TODO if it isn't then delete the String Literal
         if statement_id_set.value_prefix == STRING_VALUE_PREFIX {
-            let value_prefix = prepend(VEAC_PREFIX, statement_id_set.value_body);
+            let value_prefix = prepend(VEAC_PREFIX, statement_id_set.value_body.clone());
             let value_lookup: Vec<Result<(sled::IVec, sled::IVec), sled::Error>> =
                 self.store.scan_prefix(value_prefix).collect();
-            if value_lookup.len() == 0 {
-                //TODO if it isn't then delete the Attribute
-                todo!()
+            if value_lookup.len() == 0 { //if it isn't used in other Statements then delete the Attribute
+                let string_liteal_value = match &persisted_statement.statement.value {
+                    Value::StringLiteral(value) => {
+                        let string_literal_value_to_id_key = prepend(STRING_LITERAL_VALUE_TO_ID_PREFIX, encode_string_literal(&value));
+                        let string_literal_id_to_value_key = prepend(STRING_LITERAL_ID_TO_VALUE_PREFIX, statement_id_set.value_body);
+
+                        self.store.remove(string_literal_value_to_id_key); //TODO sanity check result
+                        self.store.remove(string_literal_id_to_value_key); //TODO sanity check result        
+                    },
+                    _ => {
+                        return Err(LigatureError("Excepted StringLiteral".to_string()));
+                    }
+                };
             }
         }
-
-        //TODO return Ok(true)
-        todo!()
+        Ok(true)
     }
 
     fn cancel(&self) -> Result<(), LigatureError> {

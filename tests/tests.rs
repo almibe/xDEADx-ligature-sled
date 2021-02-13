@@ -264,7 +264,7 @@ mod tests {
         )?;
         let res: Vec<PersistedStatement> =
             instance.query(&test_dataset, Box::new(|tx| tx.all_statements().collect()))?;
-        assert_eq!(res.len(), 3); //TODO check instance not just number
+        assert_eq!(res.len(), 1); //TODO check instance not just number
                                   //TODO check context on persisted statements
 
         let ps1c = ps1.clone();
@@ -281,7 +281,7 @@ mod tests {
         )?;
         let res: Vec<PersistedStatement> =
             instance.query(&test_dataset, Box::new(|tx| tx.all_statements().collect()))?;
-        assert_eq!(res.len(), 3); //TODO check instance not just number
+        assert!(res.is_empty()); //TODO check instance not just number
                                   //TODO check context on persisted statements
         Ok(())
     }
