@@ -3,6 +3,9 @@ name = "ligature-sled"
 version = "0.1.0-SNAPSHOT"
 authors = ["Alex Michael Berry <alexmiberry@gmail.com>"]
 edition = "2018"
+license = "MPL-2.0"
+description = "An implementation of Ligature that uses sled for storage."
+repository = "https://github.com/almibe/ligature-sled/"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 

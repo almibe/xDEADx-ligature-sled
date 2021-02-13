@@ -33,7 +33,7 @@ pub struct StatementIDSet {
     pub entity_id: u64,
     pub attribute_id: u64,
     pub value_prefix: u8,
-    pub value_body: Vec<u8>,
+    pub value_body: Vec<u8>, //value body can hold either an encoded i64 f64 or in the case of a String literal u64
     pub context_id: u64,
 }
 

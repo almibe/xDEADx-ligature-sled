@@ -197,27 +197,94 @@ mod tests {
         Ok(())
     }
 
-    // #[test]
-    // fn removing_statements_from_datasets() -> Result<(), LigatureError> {
-    //     let instance = instance();
-    //     let write_tx = instance.write();
-    //     let nn1 = tx.newNode(test_dataset);
-    //     let nn2 = tx.newNode(test_dataset);
-    //     let nn3 = tx.newNode(test_dataset);
-    //     tx.addStatement(test_dataset, Statement(nn1, a, nn2));
-    //     tx.addStatement(test_dataset, Statement(nn3, a, nn2));
-    //     tx.removeStatement(test_dataset, Statement(nn1, a, nn2));
-    //     tx.removeStatement(test_dataset, Statement(nn1, a, nn2));
-    //     tx.removeStatement(test_dataset, Statement(nn2, a, nn1));
-    //     let read_tx = instance.query();
-    //     let res = tx
-    //         .allStatements(test_dataset)
-    //         .map /*{
-    //           _.statement
-    //         }*/
-    //         .toListL;
-    //     assert_equals!(res, Set(Statement(BlankNode(3), a, BlankNode(2))));
-    // }
+    #[test]
+    fn removing_statements_from_datasets() -> Result<(), LigatureError> {
+        let instance = instance();
+        let test_dataset = dataset("test/test");
+        instance.create_dataset(&test_dataset)?;
+        let (ps1, ps2, ps3, ps4) = instance.write(
+            &test_dataset,
+            Box::new(|tx| {
+                let entity = tx.new_entity()?;
+                let attribute = Attribute::new("name")?;
+                let value = Value::StringLiteral("Juniper".to_string());
+                let string_statement = Statement {
+                    entity: entity.clone(),
+                    attribute: attribute.clone(),
+                    value: value.clone(),
+                };
+
+                let entity2 = tx.new_entity()?;
+                let attribute2 = Attribute::new("connection")?;
+                let entity3 = tx.new_entity()?;
+                let entity_statement = Statement {
+                    entity: entity2.clone(),
+                    attribute: attribute2.clone(),
+                    value: Value::Entity(entity3.clone()),
+                };
+
+                let integer = Value::IntegerLiteral(4200);
+                let integer_statement = Statement {
+                    entity: entity2.clone(),
+                    attribute: attribute2.clone(),
+                    value: integer.clone(),
+                };
+
+                let float = Value::FloatLiteral(42.2);
+                let float_statement = Statement {
+                    entity: entity3.clone(),
+                    attribute: attribute2.clone(),
+                    value: float.clone(),
+                };
+
+                let s1 = tx.add_statement(&string_statement)?;
+                let s2 = tx.add_statement(&entity_statement)?;
+                let s3 = tx.add_statement(&integer_statement)?;
+                let s4 = tx.add_statement(&float_statement)?;
+
+                tx.remove_statement(&s2);
+
+                Ok((s1, s2, s3, s4))
+            }),
+        )?;
+        let res: Vec<PersistedStatement> =
+            instance.query(&test_dataset, Box::new(|tx| tx.all_statements().collect()))?;
+        assert_eq!(res.len(), 3); //TODO check instance not just number
+                                  //TODO check context on persisted statements
+
+        let ps1c = ps1.clone();
+        let ps3c = ps3.clone();
+        instance.write(
+            &test_dataset,
+            Box::new(move |tx| {
+                tx.remove_statement(&ps1c);
+                tx.remove_statement(&ps3c);
+                Ok(())
+            }),
+        )?;
+        let res: Vec<PersistedStatement> =
+            instance.query(&test_dataset, Box::new(|tx| tx.all_statements().collect()))?;
+        assert_eq!(res.len(), 3); //TODO check instance not just number
+                                  //TODO check context on persisted statements
+
+        let ps1c = ps1.clone();
+        let ps3c = ps3.clone();
+        let ps4c = ps4.clone();
+        instance.write(
+            &test_dataset,
+            Box::new(move |tx| {
+                tx.remove_statement(&ps1c);
+                tx.remove_statement(&ps3c);
+                tx.remove_statement(&ps4c);
+                Ok(())
+            }),
+        )?;
+        let res: Vec<PersistedStatement> =
+            instance.query(&test_dataset, Box::new(|tx| tx.all_statements().collect()))?;
+        assert_eq!(res.len(), 3); //TODO check instance not just number
+                                  //TODO check context on persisted statements
+        Ok(())
+    }
 
     //   #[test]
     //   fn matching_statements_in_datasets() {

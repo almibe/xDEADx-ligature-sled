@@ -4,11 +4,11 @@
 
 use super::codec::{
     decode_dataset, decode_id, encode_attribute, encode_dataset, encode_dataset_match, encode_id,
-    encode_statement_permutations, encode_string_literal, prepend, StatementIDSet,
+    encode_statement_permutations, encode_string_literal, prepend, StatementIDSet, AEVC_PREFIX,
     ATTRIBUTE_ID_COUNTER_KEY, ATTRIBUTE_ID_TO_NAME_PREFIX, ATTRIBUTE_NAME_TO_ID_PREFIX,
-    ENTITY_ID_COUNTER_KEY, ENTITY_VALUE_PREFIX, FLOAT_VALUE_PREFIX, INTEGER_VALUE_PREFIX,
-    STRING_LITERAL_ID_COUNTER_KEY, STRING_LITERAL_ID_TO_VALUE_PREFIX,
-    STRING_LITERAL_VALUE_TO_ID_PREFIX, STRING_VALUE_PREFIX,
+    CEAV_PREFIX, ENTITY_ID_COUNTER_KEY, ENTITY_VALUE_PREFIX, FLOAT_VALUE_PREFIX,
+    INTEGER_VALUE_PREFIX, STRING_LITERAL_ID_COUNTER_KEY, STRING_LITERAL_ID_TO_VALUE_PREFIX,
+    STRING_LITERAL_VALUE_TO_ID_PREFIX, STRING_VALUE_PREFIX, VEAC_PREFIX,
 };
 use ligature::{
     Attribute, Dataset, Entity, Ligature, LigatureError, PersistedStatement, QueryTx, Range,
@@ -164,6 +164,24 @@ impl LigatureSledWriteTx {
             })?;
         Ok(next_string_literal_id)
     }
+
+    fn lookup_statement_id_set(
+        &self,
+        statement: &Statement,
+        context: &Entity,
+    ) -> Result<StatementIDSet, LigatureError> {
+        let entity_id = self.check_entity(&statement.entity)?;
+        let attribute_id = self.check_or_create_attribute(&statement.attribute)?;
+        let (value_type_prefix, value_body) = self.check_or_create_value(&statement.value)?;
+
+        Ok(StatementIDSet {
+            entity_id: entity_id,
+            attribute_id: attribute_id,
+            value_prefix: value_type_prefix,
+            value_body: value_body,
+            context_id: context.0,
+        })
+    }
 }
 
 impl WriteTx for LigatureSledWriteTx {
@@ -176,19 +194,8 @@ impl WriteTx for LigatureSledWriteTx {
     }
 
     fn add_statement(&self, statement: &Statement) -> Result<PersistedStatement, LigatureError> {
-        let entity_id = self.check_entity(&statement.entity)?;
-        let attribute_id = self.check_or_create_attribute(&statement.attribute)?;
-        let (value_type_prefix, value_body) = self.check_or_create_value(&statement.value)?;
         let context = self.new_entity()?;
-
-        let statement_id_set = StatementIDSet {
-            entity_id: entity_id,
-            attribute_id: attribute_id,
-            value_prefix: value_type_prefix,
-            value_body: value_body,
-            context_id: context.0,
-        };
-
+        let statement_id_set = self.lookup_statement_id_set(statement, &context)?;
         let permutations = encode_statement_permutations(&statement_id_set);
 
         for p in permutations {
@@ -204,7 +211,90 @@ impl WriteTx for LigatureSledWriteTx {
     fn remove_statement(
         &self,
         persisted_statement: &PersistedStatement,
-    ) -> Result<(), LigatureError> {
+    ) -> Result<bool, LigatureError> {
+        //TODO check if statement exists
+        //TODO look up to see if there is a CEAV value that starts with CEAV_PREFIX + CONTEXT.ID
+        let prefix = prepend(CEAV_PREFIX, encode_id(persisted_statement.context.0));
+        let lookup: Vec<Result<(sled::IVec, sled::IVec), sled::Error>> =
+            self.store.scan_prefix(prefix).collect();
+        if lookup.len() > 1 {
+            panic!(
+                "Invalid state of Ligature, Contexts must be unique, {:?}!!!",
+                persisted_statement.context.0
+            ); //TODO not sure the best way to handle this
+        }
+        if lookup.len() == 0 {
+            //TODO if not return Ok(false)
+            return Ok(false);
+        }
+        let potential_match_encoded: Vec<u8> = lookup
+            .first()
+            .ok_or(LigatureError(format!(
+                "Error creating Statements permutations for {:?}",
+                persisted_statement
+            )))?
+            .clone()
+            .map_err(|_| {
+                LigatureError(format!(
+                    "Error creating Statements permutations for {:?}",
+                    persisted_statement
+                ))
+            })?
+            .0
+            .to_vec();
+        let statement_id_set = self.lookup_statement_id_set(
+            &persisted_statement.statement,
+            &persisted_statement.context,
+        )?;
+        let encoded_statement_permutations: Vec<Vec<u8>> =
+            encode_statement_permutations(&statement_id_set); //this potentially does an uneeded lookup
+        if potential_match_encoded
+            != encoded_statement_permutations
+                .last()
+                .ok_or(LigatureError(format!(
+                    "Error creating Statements permutations for {:?}",
+                    persisted_statement
+                )))?
+                .clone()
+        {
+            return Ok(false);
+        }
+        for encoded_statement in encoded_statement_permutations.iter() {
+            //delete all 7 permutations of the statement
+            self.store.remove(encoded_statement).map_err(|_| {
+                LigatureError(format!(
+                    "Could not remove Statement permutation {:?} for {:?}",
+                    encoded_statement, persisted_statement
+                ))
+            })?; //
+        }
+
+        //TODO clean up by checking if the attribute is used in any remaining statements by checking AEVC
+        let attribute_prefix = prepend(
+            AEVC_PREFIX,
+            statement_id_set.attribute_id.to_be_bytes().to_vec(),
+        );
+        let attribute_lookup: Vec<Result<(sled::IVec, sled::IVec), sled::Error>> =
+            self.store.scan_prefix(attribute_prefix).collect();
+        if attribute_lookup.len() == 0 {
+            //TODO if it isn't then delete the Attribute
+            todo!()
+        }
+
+        //TODO clean up by checking if the Value is a String Literal
+        //TODO if it is check if it is being used in any other Statements by checking VAEC
+        //TODO if it isn't then delete the String Literal
+        if statement_id_set.value_prefix == STRING_VALUE_PREFIX {
+            let value_prefix = prepend(VEAC_PREFIX, statement_id_set.value_body);
+            let value_lookup: Vec<Result<(sled::IVec, sled::IVec), sled::Error>> =
+                self.store.scan_prefix(value_prefix).collect();
+            if value_lookup.len() == 0 {
+                //TODO if it isn't then delete the Attribute
+                todo!()
+            }
+        }
+
+        //TODO return Ok(true)
         todo!()
     }
 
