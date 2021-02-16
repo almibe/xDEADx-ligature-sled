@@ -215,7 +215,7 @@ impl Ligature for LigatureSled {
             let tree = store
                 .open_tree(dataset.name())
                 .map_err(|_| LigatureError("Error starting query transaction.".to_string()))?;
-            f(Box::new(LigatureSledQueryTx::new(tree)))
+            f(Box::new(&LigatureSledQueryTx::new(tree)))
         } else {
             Err(LigatureError(
                 "Error starting query transaction.".to_string(),
@@ -232,8 +232,20 @@ impl Ligature for LigatureSled {
         if LigatureSled::internal_dataset_exists(&store, &encoded_dataset)? {
             let tree = store
                 .open_tree(dataset.name())
-                .map_err(|_| LigatureError("Error starting query transaction.".to_string()))?;
-            f(Box::new(LigatureSledWriteTx::new(tree)))
+                .map_err(|_| LigatureError("Error starting write transaction.".to_string()))?;
+            let res = tree.transaction(|transaction_tree| {
+                let write_tx = LigatureSledWriteTx::new(transaction_tree.clone());
+                let res = f(Box::new(&write_tx));
+                if write_tx.active.get() {
+                    match res {
+                        Ok(value) => Ok(value),
+                        Err(err) => sled::transaction::abort(err),
+                    }
+                } else {
+                    sled::transaction::abort(LigatureError("Aborting transaction.".to_string()))
+                }
+            });
+            res.map_err(|e| LigatureError(format!("Error with writetx - {:?}.", e)))
         } else {
             Err(LigatureError(
                 "Error starting write transaction.".to_string(),

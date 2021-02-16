@@ -286,6 +286,71 @@ mod tests {
         Ok(())
     }
 
+    #[test]
+    fn allow_canceling_a_write_tx() -> Result<(), LigatureError> {
+        let instance = instance();
+        let test_dataset = dataset("test/test");
+        instance.create_dataset(&test_dataset)?;
+        let (ps1, ps2) = instance.write(
+            &test_dataset,
+            Box::new(|tx| {
+                let entity = tx.new_entity()?;
+                let attribute = Attribute::new("name")?;
+                let value = Value::StringLiteral("Juniper".to_string());
+                let string_statement = Statement {
+                    entity: entity.clone(),
+                    attribute: attribute.clone(),
+                    value: value.clone(),
+                };
+
+                let entity2 = tx.new_entity()?;
+                let attribute2 = Attribute::new("connection")?;
+                let entity3 = tx.new_entity()?;
+                let entity_statement = Statement {
+                    entity: entity2.clone(),
+                    attribute: attribute2.clone(),
+                    value: Value::Entity(entity3.clone()),
+                };
+
+                let s1 = tx.add_statement(&string_statement)?;
+                let s2 = tx.add_statement(&entity_statement)?;
+
+                Ok((s1, s2))
+            }),
+        )?;
+        let res: Vec<PersistedStatement> =
+            instance.query(&test_dataset, Box::new(|tx| tx.all_statements().collect()))?;
+        assert_eq!(res.len(), 2); //TODO check instance not just number
+                                  //TODO check context on persisted statements
+
+        instance.write(
+            &test_dataset,
+            Box::new(|tx| {
+                let entity = tx.new_entity()?;
+                let attribute = Attribute::new("name")?;
+                let value = Value::StringLiteral("Clarice".to_string());
+                let string_statement = Statement {
+                    entity: entity.clone(),
+                    attribute: attribute.clone(),
+                    value: value.clone(),
+                };
+
+                tx.add_statement(&string_statement)?;
+                tx.cancel()?;
+                Ok(())
+            }))?;
+        let res: Vec<PersistedStatement> =
+            instance.query(&test_dataset, Box::new(|tx| tx.all_statements().collect()))?;
+        assert_eq!(res.len(), 2); //TODO check instance not just number
+                                  //TODO check context on persisted statements
+        Ok(())
+    }
+
+    // #[test]
+    // fn find_statement_for_a_given_context() -> Result<(), LigatureError> {
+    //     todo!()
+    // }
+
     //   #[test]
     //   fn matching_statements_in_datasets() {
     //        let instance = LigatureMock::new();

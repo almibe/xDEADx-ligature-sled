@@ -14,14 +14,19 @@ use ligature::{
     Attribute, Dataset, Entity, Ligature, LigatureError, PersistedStatement, QueryTx, Range,
     Statement, Value, WriteTx,
 };
+use std::cell::Cell;
 
 pub struct LigatureSledWriteTx {
-    store: sled::Tree,
+    store: sled::transaction::TransactionalTree,
+    pub active: Cell<bool>,
 }
 
 impl LigatureSledWriteTx {
-    pub fn new(store: sled::Tree) -> Self {
-        Self { store: store }
+    pub fn new(store: sled::transaction::TransactionalTree) -> Self {
+        Self { 
+            store: store,
+            active: Cell::new(true), 
+        }
     }
 
     fn read_id(&self, id: u8) -> Result<u64, LigatureError> {
@@ -212,100 +217,113 @@ impl WriteTx for LigatureSledWriteTx {
         &self,
         persisted_statement: &PersistedStatement,
     ) -> Result<bool, LigatureError> {
-        let prefix = prepend(CEAV_PREFIX, encode_id(persisted_statement.context.0));
-        let lookup: Vec<Result<(sled::IVec, sled::IVec), sled::Error>> =
-            self.store.scan_prefix(prefix).collect();
-        if lookup.len() > 1 {
-            panic!(
-                "Invalid state of Ligature, Contexts must be unique, {:?}!!!",
-                persisted_statement.context.0
-            ); //TODO not sure the best way to handle this
-        }
-        if lookup.len() == 0 {
-            return Ok(false);
-        }
-        let potential_match_encoded: Vec<u8> = lookup
-            .first()
-            .ok_or(LigatureError(format!(
-                "Error creating Statements permutations for {:?}",
-                persisted_statement
-            )))?
-            .clone()
-            .map_err(|_| {
-                LigatureError(format!(
-                    "Error creating Statements permutations for {:?}",
-                    persisted_statement
-                ))
-            })?
-            .0
-            .to_vec();
+        // let prefix = prepend(CEAV_PREFIX, encode_id(persisted_statement.context.0));
+        // let lookup: Vec<Result<(sled::IVec, sled::IVec), sled::Error>> =
+        //     self.store.scan_prefix(prefix).collect();
+        // if lookup.len() > 1 {
+        //     panic!(
+        //         "Invalid state of Ligature, Contexts must be unique, {:?}!!!",
+        //         persisted_statement.context.0
+        //     ); //TODO not sure the best way to handle this
+        // }
+        // if lookup.len() == 0 {
+        //     return Ok(false);
+        // }
+        // let potential_match_encoded: Vec<u8> = lookup
+        //     .first()
+        //     .ok_or(LigatureError(format!(
+        //         "Error creating Statements permutations for {:?}",
+        //         persisted_statement
+        //     )))?
+        //     .clone()
+        //     .map_err(|_| {
+        //         LigatureError(format!(
+        //             "Error creating Statements permutations for {:?}",
+        //             persisted_statement
+        //         ))
+        //     })?
+        //     .0
+        //     .to_vec();
         let statement_id_set = self.lookup_statement_id_set(
             &persisted_statement.statement,
             &persisted_statement.context,
         )?;
         let encoded_statement_permutations: Vec<Vec<u8>> =
-            encode_statement_permutations(&statement_id_set); //this potentially does an uneeded lookup
-        if potential_match_encoded
-            != encoded_statement_permutations
-                .last()
-                .ok_or(LigatureError(format!(
-                    "Error creating Statements permutations for {:?}",
-                    persisted_statement
-                )))?
-                .clone()
-        {
-            return Ok(false);
+            encode_statement_permutations(&statement_id_set);
+        let encoded_eavc = encoded_statement_permutations.first().ok_or(LigatureError(format!(
+            "Error creating Statements permutations for {:?}",
+            persisted_statement
+        )))?.clone();
+        let res = self.store.get(encoded_eavc);
+
+        match res {
+            Ok(value) => {
+                for encoded_statement in encoded_statement_permutations.iter() {
+                    self.store.remove(encoded_statement.to_vec()).map_err(|_| {
+                        LigatureError(format!(
+                            "Could not remove Statement permutation {:?} for {:?}",
+                            encoded_statement, persisted_statement
+                        ))
+                    })?;
+                }
+                Ok(true)
+            },
+            Err(e) => return Ok(false)
         }
-        for encoded_statement in encoded_statement_permutations.iter() {
-            self.store.remove(encoded_statement).map_err(|_| {
-                LigatureError(format!(
-                    "Could not remove Statement permutation {:?} for {:?}",
-                    encoded_statement, persisted_statement
-                ))
-            })?;
-        }
+
+        // if potential_match_encoded
+        //     != encoded_statement_permutations
+        //         .last()
+        //         .ok_or(LigatureError(format!(
+        //             "Error creating Statements permutations for {:?}",
+        //             persisted_statement
+        //         )))?
+        //         .clone()
+        // {
+        //     return Ok(false);
+        // }
 
         //TODO clean up by checking if the attribute is used in any remaining statements by checking AEVC
-        let attribute_prefix = prepend(
-            AEVC_PREFIX,
-            statement_id_set.attribute_id.to_be_bytes().to_vec(), //TODO should be encode_id
-        );
-        let attribute_lookup: Vec<Result<(sled::IVec, sled::IVec), sled::Error>> =
-            self.store.scan_prefix(attribute_prefix).collect();
-        if attribute_lookup.len() == 0 { //if it isn't used in other Statements then delete the Attribute
-            let attribute_name_to_id_key = prepend(ATTRIBUTE_NAME_TO_ID_PREFIX, encode_attribute(&persisted_statement.statement.attribute));
-            let attribute_id_to_name_key = prepend(ATTRIBUTE_ID_TO_NAME_PREFIX, encode_id(statement_id_set.attribute_id));
+        // let attribute_prefix = prepend(
+        //     AEVC_PREFIX,
+        //     statement_id_set.attribute_id.to_be_bytes().to_vec(), //TODO should be encode_id
+        // );
+        // let attribute_lookup: Vec<Result<(sled::IVec, sled::IVec), sled::Error>> =
+        //     self.store.scan_prefix(attribute_prefix).collect();
+        // if attribute_lookup.len() == 0 { //if it isn't used in other Statements then delete the Attribute
+        //     let attribute_name_to_id_key = prepend(ATTRIBUTE_NAME_TO_ID_PREFIX, encode_attribute(&persisted_statement.statement.attribute));
+        //     let attribute_id_to_name_key = prepend(ATTRIBUTE_ID_TO_NAME_PREFIX, encode_id(statement_id_set.attribute_id));
 
-            self.store.remove(attribute_name_to_id_key); //TODO sanity check result
-            self.store.remove(attribute_id_to_name_key); //TODO sanity check result
-        }
+        //     self.store.remove(attribute_name_to_id_key); //TODO sanity check result
+        //     self.store.remove(attribute_id_to_name_key); //TODO sanity check result
+        // }
 
         //TODO clean up by checking if the Value is a String Literal
         //TODO if it is check if it is being used in any other Statements by checking VAEC
         //TODO if it isn't then delete the String Literal
-        if statement_id_set.value_prefix == STRING_VALUE_PREFIX {
-            let value_prefix = prepend(VEAC_PREFIX, statement_id_set.value_body.clone());
-            let value_lookup: Vec<Result<(sled::IVec, sled::IVec), sled::Error>> =
-                self.store.scan_prefix(value_prefix).collect();
-            if value_lookup.len() == 0 { //if it isn't used in other Statements then delete the Attribute
-                let string_liteal_value = match &persisted_statement.statement.value {
-                    Value::StringLiteral(value) => {
-                        let string_literal_value_to_id_key = prepend(STRING_LITERAL_VALUE_TO_ID_PREFIX, encode_string_literal(&value));
-                        let string_literal_id_to_value_key = prepend(STRING_LITERAL_ID_TO_VALUE_PREFIX, statement_id_set.value_body);
+        // if statement_id_set.value_prefix == STRING_VALUE_PREFIX {
+        //     let value_prefix = prepend(VEAC_PREFIX, statement_id_set.value_body.clone());
+        //     let value_lookup: Vec<Result<(sled::IVec, sled::IVec), sled::Error>> =
+        //         self.store.scan_prefix(value_prefix).collect();
+        //     if value_lookup.len() == 0 { //if it isn't used in other Statements then delete the Attribute
+        //         let string_liteal_value = match &persisted_statement.statement.value {
+        //             Value::StringLiteral(value) => {
+        //                 let string_literal_value_to_id_key = prepend(STRING_LITERAL_VALUE_TO_ID_PREFIX, encode_string_literal(&value));
+        //                 let string_literal_id_to_value_key = prepend(STRING_LITERAL_ID_TO_VALUE_PREFIX, statement_id_set.value_body);
 
-                        self.store.remove(string_literal_value_to_id_key); //TODO sanity check result
-                        self.store.remove(string_literal_id_to_value_key); //TODO sanity check result        
-                    },
-                    _ => {
-                        return Err(LigatureError("Excepted StringLiteral".to_string()));
-                    }
-                };
-            }
-        }
-        Ok(true)
+        //                 self.store.remove(string_literal_value_to_id_key); //TODO sanity check result
+        //                 self.store.remove(string_literal_id_to_value_key); //TODO sanity check result        
+        //             },
+        //             _ => {
+        //                 return Err(LigatureError("Excepted StringLiteral".to_string()));
+        //             }
+        //         };
+        //     }
+        // }
     }
 
     fn cancel(&self) -> Result<(), LigatureError> {
-        todo!()
+        self.active.set(false);
+        Ok(())
     }
 }
