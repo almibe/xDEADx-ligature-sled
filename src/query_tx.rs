@@ -2,14 +2,14 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
-use super::codec::{
-    decode_attribute, decode_dataset, decode_float, decode_id, decode_integer,
-    decode_statement_permutation, encode_dataset, encode_dataset_match, prepend,
-    ATTRIBUTE_ID_TO_NAME_PREFIX, EAVC_PREFIX,
-};
 use ligature::{
     Attribute, Dataset, Entity, Ligature, LigatureError, PersistedStatement, QueryTx, Range,
     Statement, Value, WriteTx,
+};
+use ligature_kv::{
+    decode_attribute, decode_dataset, decode_float, decode_id, decode_integer,
+    decode_statement_permutation, encode_dataset, encode_dataset_match, prepend,
+    ATTRIBUTE_ID_TO_NAME_PREFIX, EAVC_PREFIX,
 };
 
 pub struct LigatureSledQueryTx {

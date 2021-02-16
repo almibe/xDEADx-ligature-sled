@@ -11,4 +11,5 @@ repository = "https://github.com/almibe/ligature-sled/"
 
 [dependencies]
 ligature = { path = "../ligature" }
+ligature-kv = { path = "../ligature-kv" }
 sled = "0.34.6"

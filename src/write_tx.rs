@@ -2,17 +2,17 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
-use super::codec::{
+use ligature::{
+    Attribute, Dataset, Entity, Ligature, LigatureError, PersistedStatement, QueryTx, Range,
+    Statement, Value, WriteTx,
+};
+use ligature_kv::{
     decode_dataset, decode_id, encode_attribute, encode_dataset, encode_dataset_match, encode_id,
     encode_statement_permutations, encode_string_literal, prepend, StatementIDSet, AEVC_PREFIX,
     ATTRIBUTE_ID_COUNTER_KEY, ATTRIBUTE_ID_TO_NAME_PREFIX, ATTRIBUTE_NAME_TO_ID_PREFIX,
     CEAV_PREFIX, ENTITY_ID_COUNTER_KEY, ENTITY_VALUE_PREFIX, FLOAT_VALUE_PREFIX,
     INTEGER_VALUE_PREFIX, STRING_LITERAL_ID_COUNTER_KEY, STRING_LITERAL_ID_TO_VALUE_PREFIX,
     STRING_LITERAL_VALUE_TO_ID_PREFIX, STRING_VALUE_PREFIX, VEAC_PREFIX,
-};
-use ligature::{
-    Attribute, Dataset, Entity, Ligature, LigatureError, PersistedStatement, QueryTx, Range,
-    Statement, Value, WriteTx,
 };
 use std::cell::Cell;
 

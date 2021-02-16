@@ -4,17 +4,16 @@
 
 //#![deny(missing_docs)]
 
-mod codec;
 mod query_tx;
 mod write_tx;
 
-use codec::{
-    chomp_assert, decode_dataset, encode_dataset, encode_dataset_match, prepend,
-    ATTRIBUTE_ID_COUNTER_KEY, DATASET_PREFIX, ENTITY_ID_COUNTER_KEY, STRING_LITERAL_ID_COUNTER_KEY,
-};
 use ligature::{
     Attribute, Dataset, Ligature, LigatureError, PersistedStatement, QueryFn, QueryTx, Range,
     Statement, WriteFn, WriteTx,
+};
+use ligature_kv::{
+    chomp_assert, decode_dataset, encode_dataset, encode_dataset_match, prepend,
+    ATTRIBUTE_ID_COUNTER_KEY, DATASET_PREFIX, ENTITY_ID_COUNTER_KEY, STRING_LITERAL_ID_COUNTER_KEY,
 };
 use query_tx::LigatureSledQueryTx;
 use std::sync::RwLock;
