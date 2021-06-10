@@ -1,6 +1,11 @@
 # ligature-sled
 An implementation of Ligature that uses Sled for storage.
 
+## Status
+This project isn't used anymore.
+See https://github.com/almibe/ligature or
+https://github.com/almibe/ligature-jvm for updated projects.
+
 ## How Storage is Handled
 The default tree stores only the names of all the datasets stored.
 Each dataset then has its own tree where the records for a given dataset are stored.
